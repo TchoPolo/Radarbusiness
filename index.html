@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Radar AO</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Radar AO">
+<meta name="theme-color" content="#0F172A">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230F172A'/%3E%3Ccircle cx='90' cy='90' r='46' fill='none' stroke='%234338CA' stroke-width='10'/%3E%3Ccircle cx='90' cy='90' r='16' fill='%234338CA'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F172A'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%234338CA' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%234338CA'/%3E%3C/svg%3E">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:#F1F5F9;-webkit-text-size-adjust:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#334155}
+  button,input,select,textarea{font-family:inherit}
+  input[type=range]{accent-color:#4338CA}
+  #boot{padding:60px 24px;text-align:center;color:#94A3B8;font-size:14px}
+  .scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .scroll-x::-webkit-scrollbar{height:0}
+  @supports(padding:env(safe-area-inset-top)){
+    header.app{padding-top:calc(15px + env(safe-area-inset-top))}
+  }
+  @media(max-width:760px){
+    .grid4{grid-template-columns:repeat(2,1fr)!important}
+    .grid2{grid-template-columns:1fr!important}
+    .cmdgrid{grid-template-columns:1fr 1fr!important}
+    .cmdgrid .cmdbtn{grid-column:1/-1}
+    .calgrid{grid-template-columns:1fr!important}
+    main.app{padding:14px!important}
+  }
+</style>
+</head>
+<body>
+<div id="root"><div id="boot">Chargement de Radar AO…</div></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+/* ══════════════════════════════════════════════════════════════
+   RADAR AO — détection d'opportunités
+   Appels d'offres (BOAMP) · Mouvements dirigeants (BODACC) · Presse
+   Fichier autonome — aucune dépendance locale
+   ══════════════════════════════════════════════════════════════ */
+
+const T = {
+  bg:"#F1F5F9", card:"#FFFFFF", ink:"#0F172A", body:"#334155", mute:"#94A3B8",
+  line:"#E2E8F0", brand:"#4338CA", brandLt:"#EEF2FF",
+  hot:"#DC2626", hotLt:"#FEF2F2", warm:"#EA580C", warmLt:"#FFF7ED",
+  ok:"#059669", okLt:"#ECFDF5", cool:"#0891B2", coolLt:"#ECFEFF",
+  violet:"#7C3AED", violetLt:"#F5F3FF",
+};
+
+const DEPTS = { "02":"Aisne", "59":"Nord", "60":"Oise", "62":"Pas-de-Calais", "80":"Somme" };
+const ALL_DEPTS = Object.keys(DEPTS);
+
+/* ─── FAMILLES — APPELS D'OFFRES ──────────────────────────────── */
+const AO_CATS = {
+  bancaire:{ label:"Services bancaires", weight:10, color:T.brand, terms:[
+    "services bancaires","service bancaire","prestations bancaires","prestation bancaire",
+    "marche bancaire","marches bancaires","etablissement bancaire","compte bancaire",
+    "tenue de compte","gestion de compte","mandataire financier","regie de recettes",
+    "regie d'avances","comptable public","banque","bancaire"]},
+  encaissement:{ label:"Encaissement & monétique", weight:10, color:T.hot, terms:[
+    "monetique","tpe","terminal de paiement","terminaux de paiement","acquisition monetique",
+    "encaissement","encaissements","carte bancaire","cartes bancaires","paiement de proximite",
+    "softpos","paiement en ligne","paiement web","vente a distance","e-commerce","paiement mobile",
+    "sans contact","paiement omnicanal","automate de paiement","borne de paiement","tpv",
+    "solution de paiement","solutions de paiement","prestataire de paiement","psp","caisse enregistreuse"]},
+  fluxDom:{ label:"Flux domestiques", weight:9, color:T.cool, terms:[
+    "sepa","virement","virements","prelevement","prelevements","flux financiers","flux bancaires",
+    "moyens de paiement","moyen de paiement","ebics","host-to-host","host to host","iso 20022",
+    "cash management","gestion de tresorerie","tresorerie","portail bancaire","connectivite bancaire",
+    "dematerialisation bancaire","edi bancaire","cheque","cheques","remise de cheques","lcr",
+    "mandat sepa","paiement securise","securisation des paiements","lutte contre la fraude","anti-fraude"]},
+  international:{ label:"International & trade", weight:8, color:T.violet, terms:[
+    "swift","swiftnet","paiements internationaux","paiement international","trade finance",
+    "credit documentaire","remise documentaire","garantie internationale","garanties internationales",
+    "caution internationale","operations de change","couverture de change","devise","devises",
+    "cash pooling","centralisation de tresorerie","virtual account","comptes virtuels",
+    "transfrontalier","multidevise","import","export"]},
+  avantages:{ label:"Avantages salariés", weight:8, color:T.warm, terms:[
+    "titre restaurant","titres restaurant","titre-restaurant","titres-restaurant","cheque dejeuner",
+    "cheques dejeuner","ticket restaurant","tickets restaurant","carte restaurant","cheque vacances",
+    "cheques vacances","cesu","cheque emploi service","avantages salaries","cheque cadeau",
+    "cheques cadeaux","carte cadeau","action sociale","oeuvres sociales","comite social","cse",
+    "prestations sociales","cheque culture","forfait mobilite","mobilite durable"]},
+  amont:{ label:"Signaux amont (SI)", weight:6, color:T.ok, terms:[
+    "sap","s/4hana","erp","oracle financials","kyriba","sage xrt","logiciel de tresorerie","tms",
+    "treasury management","systeme d'information financier","dsp2","api bancaire","open banking",
+    "facturation electronique","facture electronique","dematerialisation des factures","chorus pro",
+    "portail fournisseur","gestion financiere","logiciel comptable","refonte si","audit de tresorerie",
+    "assistance a maitrise d'ouvrage financiere","amo finance"]},
+  financement:{ label:"Financement", weight:5, color:T.mute, terms:[
+    "ligne de tresorerie","emprunt","emprunts","credit bancaire","financement","affacturage",
+    "factoring","credit-bail","credit bail","leasing","location financiere","cession dailly",
+    "escompte","autorisation de decouvert"]},
+};
+const AO_KEYS = Object.keys(AO_CATS);
+
+/* ─── FAMILLES — SIGNAUX BODACC ───────────────────────────────── */
+const SIG_CATS = {
+  direction:{ label:"Changement de direction", weight:10, color:T.hot, terms:[
+    "modification de la direction","changement de dirigeant","nouveau dirigeant","directeur general",
+    "president","presidente","gerant","gerante","administrateur","directeur financier","daf",
+    "tresorier","conseil d'administration","directoire","conseil de surveillance",
+    "representant permanent","commissaire aux comptes","nomination","demission","cessation de fonction"]},
+  croissance:{ label:"Croissance & investissement", weight:9, color:T.ok, terms:[
+    "augmentation de capital","apport","fusion","absorption","acquisition","prise de participation",
+    "creation d'etablissement","ouverture d'etablissement","extension d'activite","nouvelle activite",
+    "transfert de siege","changement d'objet social"]},
+  transmission:{ label:"Transmission & cession", weight:8, color:T.violet, terms:[
+    "vente","cession","fonds de commerce","location-gerance","location gerance",
+    "transmission universelle","apport partiel d'actif","dissolution sans liquidation"]},
+  creation:{ label:"Création d'entreprise", weight:6, color:T.brand, terms:[
+    "immatriculation","creation","constitution","premiere immatriculation"]},
+  risque:{ label:"Difficulté (vigilance)", weight:4, color:T.mute, terms:[
+    "procedure collective","redressement judiciaire","liquidation judiciaire","sauvegarde",
+    "conciliation","cessation des paiements","plan de continuation"]},
+};
+const SIG_KEYS = Object.keys(SIG_CATS);
+
+const STATUS = {
+  a_etudier:{ label:"À étudier", color:T.brand, bg:T.brandLt },
+  en_cours:{ label:"En cours", color:T.warm, bg:T.warmLt },
+  depose:{ label:"Déposé", color:T.violet, bg:T.violetLt },
+  gagne:{ label:"Gagné", color:T.ok, bg:T.okLt },
+  perdu:{ label:"Non retenu", color:T.mute, bg:T.bg },
+};
+
+/* ─── UTILS ───────────────────────────────────────────────────── */
+const norm = (s) => String(s||"").toLowerCase().normalize("NFD")
+  .replace(/[\u0300-\u036f]/g,"").replace(/['\u2019`]/g,"'");
+const fmtDate = (d) => { if(!d) return "—"; const x=new Date(d); return isNaN(x)?"—":x.toLocaleDateString("fr-FR"); };
+const daysLeft = (d) => { if(!d) return null; const x=new Date(d); return isNaN(x)?null:Math.ceil((x-new Date())/86400000); };
+const urgColor = (n) => n===null?T.mute:n<0?T.mute:n<=7?T.hot:n<=21?T.warm:T.ok;
+const pick = (o,ks)=>{ for(let i=0;i<ks.length;i++){ const v=o[ks[i]]; if(v!==null&&v!==undefined&&v!==""&&v!=="null") return v; } return null; };
+const asArr = (v)=> v===null||v===undefined?[]:Array.isArray(v)?v:[v];
+
+/* Stockage local */
+const LS = {
+  get(k,fb){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):fb; }catch(_){ return fb; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(_){} },
+  getRaw(k,fb){ try{ return localStorage.getItem(k) || fb; }catch(_){ return fb; } },
+  setRaw(k,v){ try{ localStorage.setItem(k,v); }catch(_){} },
+};
+
+function extractJSON(text){
+  if(!text) return null;
+  const c = String(text).replace(/```json/gi,"").replace(/```/g,"");
+  const s = c.indexOf("{"), e = c.lastIndexOf("}");
+  if(s===-1||e<=s) return null;
+  try{ return JSON.parse(c.substring(s,e+1)); }catch(_){ return null; }
+}
+
+function scoreItem(hay, catalog, keys, enabled){
+  let raw=0; const matched=[], hits=[];
+  keys.forEach(function(k){
+    if(enabled && !enabled[k]) return;
+    const c=catalog[k];
+    const found=c.terms.filter(function(t){ return hay.indexOf(t)!==-1; });
+    if(found.length){
+      raw += c.weight + Math.min(found.length-1,4)*1.5;
+      matched.push(k);
+      found.slice(0,3).forEach(function(f){ if(hits.indexOf(f)===-1) hits.push(f); });
+    }
+  });
+  if(!raw) return null;
+  if(matched.length>=3) raw+=6; else if(matched.length===2) raw+=3;
+  const score=Math.min(100,Math.round(raw*3.2));
+  return { score, tier: score>=62?"Élevée":score>=36?"Moyenne":"Faible", categories:matched, hits };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COUCHE DONNÉES
+   ══════════════════════════════════════════════════════════════ */
+const ENDPOINTS = {
+  boamp:"https://www.boamp.fr/api/explore/v2.1/catalog/datasets/boamp/records",
+  bodacc:"https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records",
+};
+
+async function fetchJSON(url, log){
+  const routes=[
+    { n:"Direct", u:url },
+    { n:"corsproxy", u:"https://corsproxy.io/?url="+encodeURIComponent(url) },
+    { n:"allorigins", u:"https://api.allorigins.win/raw?url="+encodeURIComponent(url) },
+  ];
+  for(let i=0;i<routes.length;i++){
+    try{
+      const r=await fetch(routes[i].u,{ headers:{ Accept:"application/json" } });
+      if(!r.ok){ log("  ✗ "+routes[i].n+" → HTTP "+r.status); continue; }
+      const d=await r.json();
+      log("  ✓ "+routes[i].n);
+      return { data:d, via:routes[i].n };
+    }catch(e){ log("  ✗ "+routes[i].n+" → "+((e&&e.message)||"bloqué")); }
+  }
+  return null;
+}
+
+/* Appel Anthropic depuis le navigateur */
+async function callClaude(apiKey, body){
+  if(!apiKey) throw new Error("clé API absente");
+  const res = await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{
+      "Content-Type":"application/json",
+      "x-api-key":apiKey,
+      "anthropic-version":"2023-06-01",
+      "anthropic-dangerous-direct-browser-access":"true",
+    },
+    body: JSON.stringify(body),
+  });
+  if(!res.ok){
+    let msg = "HTTP "+res.status;
+    try{ const j=await res.json(); if(j&&j.error&&j.error.message) msg=j.error.message; }catch(_){}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+/* ─── BOAMP ───────────────────────────────────────────────────── */
+function normalizeAO(r0){
+  const r = r0 && r0.fields ? r0.fields : r0;
+  if(!r || typeof r!=="object") return null;
+  const objet = pick(r,["objet","objet_marche","OBJET_MARCHE","intitule","titre"]);
+  if(!objet) return null;
+  const idweb = pick(r,["idweb","id_web","id"]);
+  const depts = asArr(pick(r,["code_departement","code_dept","departement","dept"]))
+    .map(function(d){ return String(d).padStart(2,"0").substring(0,2); })
+    .filter(function(d){ return /^\d{2}$/.test(d); });
+  const descripteur = asArr(pick(r,["descripteur_libelle","descripteur"])).join(" ");
+  let extra="";
+  try{ const dn=r.donnees; if(dn) extra = typeof dn==="string"?dn:JSON.stringify(dn); }catch(_){}
+  return {
+    kind:"ao",
+    id:"ao-"+String(idweb||objet).substring(0,70),
+    ref: idweb?String(idweb):null,
+    objet:String(objet).substring(0,500),
+    acheteur:String(pick(r,["nomacheteur","nom_acheteur","acheteur","organisme"])||"Acheteur non précisé").substring(0,180),
+    dateParution: pick(r,["dateparution","date_parution"]),
+    dateLimite: pick(r,["datelimitereponse","date_limite_reponse","datelimite","dlro"]),
+    depts, descripteur,
+    typeAvis:String(pick(r,["type_avis","typeavis","nature_libelle"])||""),
+    procedure:String(pick(r,["procedure_libelle","procedure"])||""),
+    url: pick(r,["url_avis","urlavis"]) || (idweb?"https://www.boamp.fr/avis/detail/"+idweb:"https://www.boamp.fr"),
+    hay: norm([objet,pick(r,["nomacheteur","acheteur"]),descripteur,pick(r,["type_avis"]),extra.substring(0,4000)].join(" | ")),
+  };
+}
+
+async function scanBOAMP(depts, days, pages, log, prog){
+  const since=new Date(); since.setDate(since.getDate()-days);
+  const iso=since.toISOString().split("T")[0];
+  const dl=depts.map(function(d){ return '"'+d+'"'; }).join(",");
+  const plans=[
+    { n:"Départements + date", w:"code_departement in ("+dl+") and dateparution >= date'"+iso+"'" },
+    { n:"Date seule", w:"dateparution >= date'"+iso+"'" },
+    { n:"Derniers avis", w:null },
+  ];
+  for(let p=0;p<plans.length;p++){
+    log("── BOAMP · "+plans[p].n);
+    const rows=[]; let via="";
+    for(let pg=0;pg<pages;pg++){
+      prog("BOAMP — "+plans[p].n+" · page "+(pg+1));
+      const qs=new URLSearchParams({ order_by:"dateparution desc", limit:"100", offset:String(pg*100) });
+      if(plans[p].w) qs.set("where",plans[p].w);
+      const got=await fetchJSON(ENDPOINTS.boamp+"?"+qs.toString(), log);
+      if(!got) break;
+      const rs=got.data.results||got.data.records||[];
+      if(!Array.isArray(rs)||rs.length===0) break;
+      via=got.via; rows.push.apply(rows,rs);
+      log("  page "+(pg+1)+" → "+rs.length);
+      if(rs.length<100) break;
+    }
+    if(rows.length){ log("→ "+rows.length+" avis via "+via); return { rows, plan:plans[p].n, via }; }
+    log("→ vide, plan suivant");
+  }
+  return null;
+}
+
+/* ─── BODACC ──────────────────────────────────────────────────── */
+function normalizeSignal(r0){
+  const r = r0 && r0.fields ? r0.fields : r0;
+  if(!r || typeof r!=="object") return null;
+  const societe = pick(r,["commercant","denomination","nom","raison_sociale"]);
+  const famille = String(pick(r,["familleavis_lib","familleavis","typeavis_lib","typeavis"])||"");
+  if(!societe && !famille) return null;
+  let details="";
+  ["modificationsgenerales","personnes","depot","jugement","vente","etablissement","descriptif"].forEach(function(k){
+    const v=r[k]; if(!v) return;
+    details += " " + (typeof v==="string"?v:JSON.stringify(v));
+  });
+  const dept=String(pick(r,["numerodepartement","code_departement","departement"])||"").padStart(2,"0").substring(0,2);
+  const id=pick(r,["id","publicationavis","numeroannonce"])||(societe+famille);
+  return {
+    kind:"sig",
+    id:"sig-"+String(id).substring(0,70),
+    ref:String(pick(r,["numeroannonce","publicationavis"])||""),
+    objet:(famille?famille+" — ":"")+(societe||"Entité non nommée"),
+    societe:String(societe||"—").substring(0,180),
+    acheteur:String(societe||"—").substring(0,180),
+    famille,
+    ville:String(pick(r,["ville","cp_ville"])||""),
+    dateParution:pick(r,["dateparution","date_parution"]),
+    dateLimite:null,
+    depts:/^\d{2}$/.test(dept)?[dept]:[],
+    details:details.replace(/[{}"\[\]]/g," ").replace(/\s+/g," ").trim().substring(0,900),
+    url:"https://www.bodacc.fr/pages/annonces-commerciales/",
+    hay:norm([societe,famille,details.substring(0,3000)].join(" | ")),
+  };
+}
+
+async function scanBODACC(depts, days, pages, log, prog){
+  const since=new Date(); since.setDate(since.getDate()-days);
+  const iso=since.toISOString().split("T")[0];
+  const dl=depts.map(function(d){ return '"'+d+'"'; }).join(",");
+  const plans=[
+    { n:"Départements + date", w:"numerodepartement in ("+dl+") and dateparution >= date'"+iso+"'" },
+    { n:"Date seule", w:"dateparution >= date'"+iso+"'" },
+    { n:"Dernières annonces", w:null },
+  ];
+  for(let p=0;p<plans.length;p++){
+    log("── BODACC · "+plans[p].n);
+    const rows=[]; let via="";
+    for(let pg=0;pg<pages;pg++){
+      prog("BODACC — "+plans[p].n+" · page "+(pg+1));
+      const qs=new URLSearchParams({ order_by:"dateparution desc", limit:"100", offset:String(pg*100) });
+      if(plans[p].w) qs.set("where",plans[p].w);
+      const got=await fetchJSON(ENDPOINTS.bodacc+"?"+qs.toString(), log);
+      if(!got) break;
+      const rs=got.data.results||got.data.records||[];
+      if(!Array.isArray(rs)||rs.length===0) break;
+      via=got.via; rows.push.apply(rows,rs);
+      log("  page "+(pg+1)+" → "+rs.length);
+      if(rs.length<100) break;
+    }
+    if(rows.length){ log("→ "+rows.length+" annonces via "+via); return { rows, plan:plans[p].n, via }; }
+    log("→ vide, plan suivant");
+  }
+  return null;
+}
+
+/* ─── PRESSE (nécessite la clé API) ───────────────────────────── */
+async function scanPresse(apiKey, depts, log, prog){
+  if(!apiKey){ log("── Presse · ignorée (clé API absente)"); return []; }
+  prog("Presse — recherche des signaux dirigeants et SI…");
+  log("── Presse · recherche IA");
+  const zone=depts.map(function(d){ return DEPTS[d]; }).join(", ");
+  try{
+    const data = await callClaude(apiKey,{
+      model:"claude-sonnet-4-20250514", max_tokens:5000,
+      tools:[{ type:"web_search_20250305", name:"web_search" }],
+      system:"Tu es analyste en intelligence commerciale. Tu identifies des signaux d'affaires récents dans la presse économique régionale et nationale. Tu réponds UNIQUEMENT en JSON valide, sans markdown ni backtick.",
+      messages:[{ role:"user", content:
+        "Recherche dans la presse économique des 60 derniers jours les signaux concernant des entreprises et organisations publiques situées dans ces départements : "+zone+".\n\n"+
+        "Signaux recherchés, par ordre de priorité :\n"+
+        "1. Nomination ou changement de directeur financier (DAF), trésorier, directeur administratif et financier, secrétaire général\n"+
+        "2. Changement de directeur général, président, arrivée d'un nouveau dirigeant\n"+
+        "3. Projet de refonte des systèmes d'encaissement, de caisse, de monétique ou de paiement\n"+
+        "4. Déploiement ou remplacement d'un TMS, ERP finance, SAP S/4HANA, Kyriba, Sage XRT\n"+
+        "5. Projet de facturation électronique, dématérialisation financière, centralisation de trésorerie\n"+
+        "6. Levée de fonds, acquisition, ouverture de site, expansion internationale\n\n"+
+        "Sources à privilégier : La Voix du Nord Éco, Gazette Nord-Pas-de-Calais, Picardie la Gazette, Les Échos, L'Usine Nouvelle, Journal des Entreprises, communiqués d'entreprises.\n\n"+
+        "Retourne exactement ce JSON, 12 signaux maximum, les plus récents et exploitables :\n"+
+        '{"results":[{"societe":"nom","fonction":"poste ou type de projet","signal":"description factuelle en une phrase",'+
+        '"categorie":"direction|encaissement|si_finance|croissance","dept":"59","date":"AAAA-MM-JJ",'+
+        '"source":"média","url":"lien","angle":"comment aborder commercialement ce signal, en une phrase"}]}\n'+
+        'Si rien de probant : {"results":[]}' }],
+    });
+    const txt=(data.content||[]).filter(function(b){return b.type==="text";}).map(function(b){return b.text;}).join("\n");
+    const parsed=extractJSON(txt);
+    const out=parsed&&Array.isArray(parsed.results)?parsed.results:[];
+    log("  ✓ presse → "+out.length+" signaux");
+    return out.map(function(s,i){
+      return {
+        kind:"presse",
+        id:"pr-"+i+"-"+norm(s.societe||"x").substring(0,20),
+        objet:(s.fonction?s.fonction+" — ":"")+(s.societe||"?"),
+        societe:s.societe||"?", acheteur:s.societe||"?",
+        signal:s.signal||"", categorie:s.categorie||"", angle:s.angle||"",
+        source:s.source||"", dateParution:s.date||null, dateLimite:null,
+        depts:(s.dept&&/^\d{2}$/.test(String(s.dept)))?[String(s.dept)]:[],
+        url:s.url||"",
+      };
+    });
+  }catch(e){ log("  ✗ presse → "+((e&&e.message)||"erreur")); return []; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UI
+   ══════════════════════════════════════════════════════════════ */
+function Btn({ children, onClick, disabled, kind, style }){
+  const K={
+    solid:{ background:T.brand, color:"#fff", border:"1px solid "+T.brand },
+    plain:{ background:"#fff", color:T.ink, border:"1px solid "+T.line },
+    danger:{ background:T.hotLt, color:T.hot, border:"1px solid "+T.hot+"44" },
+    ok:{ background:T.okLt, color:T.ok, border:"1px solid "+T.ok+"44" },
+  };
+  const s=K[kind||"solid"];
+  return (
+    <button onClick={onClick} disabled={disabled} style={Object.assign({
+      background:s.background, color:s.color, border:s.border, padding:"9px 15px",
+      borderRadius:7, fontSize:13, fontWeight:600, cursor:disabled?"not-allowed":"pointer",
+      opacity:disabled?0.5:1, display:"inline-flex", alignItems:"center", gap:6 }, style||{})}>
+      {children}
+    </button>
+  );
+}
+
+function Chip({ children, color, bg, onClick, active }){
+  return (
+    <span onClick={onClick} style={{
+      background:bg||T.brandLt, color:color||T.brand, fontSize:11, fontWeight:650,
+      padding:"3px 9px", borderRadius:11, whiteSpace:"nowrap",
+      cursor:onClick?"pointer":"default",
+      border:"1px solid "+(active?(color||T.brand):"transparent") }}>
+      {children}
+    </span>
+  );
+}
+
+function Field({ label, children }){
+  return (
+    <div>
+      <div style={{ fontSize:10, color:T.mute, fontWeight:700, letterSpacing:0.6,
+                     textTransform:"uppercase", marginBottom:4 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
+const inputStyle={ width:"100%", padding:"8px 9px", border:"1px solid "+T.line,
+  borderRadius:6, fontSize:16, background:"#fff", color:T.ink };
+
+/* ─── CARTE ───────────────────────────────────────────────────── */
+function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd, onUpdate, onRemove, hasKey }){
+  const isOpen = open===item.id;
+  const dl = daysLeft(item.dateLimite);
+  const sc = mode==="pipe" ? STATUS[item.status] : null;
+  const catalog = item.kind==="sig" ? SIG_CATS : AO_CATS;
+  const tierColor = !item.eval ? T.cool
+    : item.eval.tier==="Élevée" ? T.ok : item.eval.tier==="Moyenne" ? T.warm : T.mute;
+  const kc = item.kind==="ao" ? { l:"Appel d'offres", c:T.brand, b:T.brandLt }
+    : item.kind==="sig" ? { l:"BODACC", c:T.violet, b:T.violetLt }
+    : { l:"Presse", c:T.cool, b:T.coolLt };
+
+  return (
+    <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, marginBottom:8,
+                   overflow:"hidden", borderLeft:"4px solid "+(mode==="pipe"?(sc?sc.color:T.brand):tierColor) }}>
+      <div style={{ padding:"12px 14px", cursor:"pointer" }} onClick={()=>setOpen(isOpen?null:item.id)}>
+        <div style={{ display:"flex", gap:10, justifyContent:"space-between" }}>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:7 }}>
+              <Chip bg={kc.b} color={kc.c}>{kc.l}</Chip>
+              {item.eval && <Chip bg={tierColor+"1A"} color={tierColor}>{item.eval.score}/100</Chip>}
+              {item.depts.map((d)=><Chip key={d} bg={T.ink} color="#fff">{d} {DEPTS[d]||""}</Chip>)}
+              {item.eval && item.eval.categories.slice(0,2).map((c)=>(
+                <Chip key={c} bg={catalog[c].color+"18"} color={catalog[c].color}>{catalog[c].label}</Chip>
+              ))}
+              {item.categorie && <Chip bg={T.coolLt} color={T.cool}>{item.categorie}</Chip>}
+              {mode==="pipe" && sc && <Chip bg={sc.bg} color={sc.color}>{sc.label}</Chip>}
+              {aiBusy && <Chip bg={T.warmLt} color={T.warm}>Analyse…</Chip>}
+            </div>
+            <div style={{ fontWeight:600, fontSize:14, color:T.ink, lineHeight:1.45,
+                           display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>
+              {item.objet}
+            </div>
+            <div style={{ fontSize:12, color:T.mute, marginTop:4 }}>
+              {item.kind==="ao" ? item.acheteur : (item.signal||item.ville||item.societe)}
+            </div>
+          </div>
+          <div style={{ textAlign:"right", minWidth:88, flexShrink:0, fontSize:12 }}>
+            <div style={{ color:T.mute }}>{fmtDate(item.dateParution)}</div>
+            {dl!==null && <div style={{ marginTop:5, fontWeight:700, color:urgColor(dl) }}>
+              {dl<0?"Clôturé":dl===0?"Dernier jour":"J-"+dl}</div>}
+            <div style={{ marginTop:6, color:T.mute, fontSize:11 }}>{isOpen?"▲":"▼"}</div>
+          </div>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div style={{ borderTop:"1px solid "+T.line, background:"#FAFBFD", padding:"13px 14px" }}>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:13 }}>
+            <Btn onClick={()=>onAnalyze(item)} disabled={!!ai||aiBusy||!hasKey} kind={ai?"ok":"solid"}>
+              {aiBusy?"Analyse…":ai?"Analysé":hasKey?"Analyser par IA":"Clé API requise"}
+            </Btn>
+            {mode!=="pipe" && (
+              <Btn onClick={()=>onAdd(item)} disabled={inPipe} kind={inPipe?"ok":"plain"}>
+                {inPipe?"Dans le pipeline":"+ Pipeline"}
+              </Btn>
+            )}
+            {item.url && (
+              <a href={item.url} target="_blank" rel="noopener noreferrer"
+                style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"9px 15px",
+                          background:"#fff", color:T.ink, border:"1px solid "+T.line,
+                          borderRadius:7, fontSize:13, fontWeight:600, textDecoration:"none" }}>
+                {item.kind==="presse"?"Lire l'article ↗":"Voir la source ↗"}
+              </a>
+            )}
+          </div>
+
+          {item.kind==="sig" && item.details && (
+            <div style={{ background:"#fff", border:"1px solid "+T.line, borderRadius:7,
+                           padding:"11px 13px", marginBottom:13, fontSize:12.5, color:T.body, lineHeight:1.55 }}>
+              <div style={{ fontSize:10, color:T.mute, fontWeight:700, textTransform:"uppercase",
+                             letterSpacing:0.5, marginBottom:5 }}>Contenu de l'annonce</div>
+              {item.details}
+            </div>
+          )}
+
+          {item.kind==="presse" && (
+            <div style={{ marginBottom:13 }}>
+              {item.signal && <div style={{ background:T.coolLt, borderLeft:"3px solid "+T.cool,
+                borderRadius:"0 5px 5px 0", padding:"9px 12px", marginBottom:7, fontSize:13, color:T.body }}>
+                {item.signal}</div>}
+              {item.angle && <div style={{ background:T.okLt, borderLeft:"3px solid "+T.ok,
+                borderRadius:"0 5px 5px 0", padding:"9px 12px", fontSize:13, color:T.body }}>
+                <strong style={{ color:T.ok }}>Angle : </strong>{item.angle}</div>}
+              {item.source && <div style={{ fontSize:11, color:T.mute, marginTop:7 }}>Source : {item.source}</div>}
+            </div>
+          )}
+
+          {item.kind==="ao" && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))", gap:10,
+                           marginBottom:13, padding:"11px 13px", background:"#fff",
+                           border:"1px solid "+T.line, borderRadius:7 }}>
+              {[{l:"Date limite",v:fmtDate(item.dateLimite)},{l:"Type",v:item.typeAvis||"—"},
+                {l:"Procédure",v:item.procedure||"—"},{l:"Référence",v:item.ref||"—"}].map((f,i)=>(
+                <div key={i}>
+                  <div style={{ fontSize:10, color:T.mute, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>{f.l}</div>
+                  <div style={{ fontSize:13, color:T.body, marginTop:2 }}>{f.v}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {item.eval && item.eval.hits.length>0 && (
+            <div style={{ marginBottom:13, display:"flex", flexWrap:"wrap", gap:4 }}>
+              {item.eval.hits.map((h,i)=>(
+                <span key={i} style={{ background:T.brandLt, color:T.brand, fontSize:11,
+                                        padding:"2px 8px", borderRadius:10 }}>{h}</span>
+              ))}
+            </div>
+          )}
+
+          {ai && !ai.error && (
+            <div style={{ background:"#fff", border:"1px solid "+T.line, borderRadius:8, padding:13, marginBottom:13 }}>
+              <div style={{ fontWeight:700, color:T.ink, fontSize:13, marginBottom:10 }}>Analyse IA</div>
+              {[{l:"Lecture du besoin",v:ai.besoin,c:T.brand},{l:"Angle d'attaque",v:ai.angle,c:T.ok},
+                {l:"Interlocuteur à viser",v:ai.interlocuteur,c:T.cool},{l:"Point de vigilance",v:ai.vigilance,c:T.hot}]
+                .map((b,i)=> b.v ? (
+                <div key={i} style={{ background:b.c+"0F", borderLeft:"3px solid "+b.c,
+                                       borderRadius:"0 5px 5px 0", padding:"8px 11px", marginBottom:7 }}>
+                  <div style={{ fontSize:10, color:b.c, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>{b.l}</div>
+                  <div style={{ fontSize:13, color:T.body, marginTop:3 }}>{b.v}</div>
+                </div>
+              ) : null)}
+            </div>
+          )}
+          {ai && ai.error && (
+            <div style={{ background:T.hotLt, color:T.hot, fontSize:12, padding:"8px 12px",
+                           borderRadius:6, marginBottom:13 }}>Analyse indisponible : {ai.error}</div>
+          )}
+
+          {mode==="pipe" && (
+            <div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9, marginBottom:9 }}>
+                <Field label="Statut">
+                  <select value={item.status} onChange={(e)=>onUpdate(item.id,{status:e.target.value})} style={inputStyle}>
+                    {Object.keys(STATUS).map((k)=><option key={k} value={k}>{STATUS[k].label}</option>)}
+                  </select>
+                </Field>
+                <Field label="Relance">
+                  <input type="date" value={item.relance||""} style={inputStyle}
+                    onChange={(e)=>onUpdate(item.id,{relance:e.target.value})} />
+                </Field>
+              </div>
+              <Field label="Notes">
+                <textarea value={item.notes||""} onChange={(e)=>onUpdate(item.id,{notes:e.target.value})}
+                  placeholder="Contact identifié, stratégie, concurrence en place…"
+                  style={Object.assign({},inputStyle,{ height:74, resize:"vertical", padding:8, fontSize:14 })} />
+              </Field>
+              <div style={{ marginTop:9 }}>
+                <Btn onClick={()=>onRemove(item.id)} kind="danger">Retirer du pipeline</Btn>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── BARRE DE COMMANDE ───────────────────────────────────────── */
+function CommandBar({ depts, setDepts, days, setDays, pages, setPages, run, loading, progress, sources, setSources, hasKey }){
+  return (
+    <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:15, marginBottom:15 }}>
+      <div className="cmdgrid" style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:11, alignItems:"end" }}>
+        <Field label="Période">
+          <select value={days} onChange={(e)=>setDays(Number(e.target.value))} style={inputStyle}>
+            {[7,14,30,60,90].map((d)=><option key={d} value={d}>{d} derniers jours</option>)}
+          </select>
+        </Field>
+        <Field label="Profondeur">
+          <select value={pages} onChange={(e)=>setPages(Number(e.target.value))} style={inputStyle}>
+            {[1,2,3,5].map((n)=><option key={n} value={n}>{n*100} par source</option>)}
+          </select>
+        </Field>
+        <Btn onClick={run} disabled={loading} style={{ padding:"11px 22px", fontSize:14, justifyContent:"center" }}>
+          {loading?"Scan en cours…":"Lancer le scan"}
+        </Btn>
+      </div>
+
+      <div style={{ marginTop:12, display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
+        <span style={{ fontSize:10, color:T.mute, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6 }}>Sources</span>
+        {[{k:"boamp",l:"Appels d'offres"},{k:"bodacc",l:"BODACC"},{k:"presse",l:"Presse & SI"+(hasKey?"":" (clé requise)")}].map((s)=>{
+          const on=!!sources[s.k];
+          return <Chip key={s.k} active={on} bg={on?T.brand:"#fff"} color={on?"#fff":T.mute}
+            onClick={()=>setSources(Object.assign({},sources,{[s.k]:!on}))}>{s.l}</Chip>;
+        })}
+      </div>
+
+      <div style={{ marginTop:10, display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
+        <span style={{ fontSize:10, color:T.mute, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6 }}>Territoire</span>
+        {ALL_DEPTS.map((d)=>{
+          const on=depts.indexOf(d)!==-1;
+          return <Chip key={d} active={on} bg={on?T.ink:"#fff"} color={on?"#fff":T.mute}
+            onClick={()=>setDepts(on?depts.filter((x)=>x!==d):depts.concat([d]))}>{d} · {DEPTS[d]}</Chip>;
+        })}
+      </div>
+
+      {loading && progress && (
+        <div style={{ marginTop:12, padding:"10px 13px", background:T.brandLt,
+                       border:"1px solid "+T.brand+"33", borderRadius:7,
+                       fontSize:13, color:T.brand, fontWeight:600 }}>{progress}</div>
+      )}
+    </div>
+  );
+}
+
+/* ─── FLUX ────────────────────────────────────────────────────── */
+function TabFlux({ items, kinds, empty, cats, setCats, catalog, catKeys, minScore, setMinScore,
+                   onlyOpen, setOnlyOpen, sortBy, setSortBy, open, setOpen, aiCache, aiBusy,
+                   pipeline, onAnalyze, onAdd, error, hasKey }){
+  const [showCfg,setShowCfg]=useState(false);
+  const shown=useMemo(()=>{
+    let l=items.filter((a)=>kinds.indexOf(a.kind)!==-1);
+    if(catalog) l=l.filter((a)=>!a.eval||a.eval.score>=minScore);
+    if(onlyOpen) l=l.filter((a)=>{ const d=daysLeft(a.dateLimite); return d===null||d>=0; });
+    const s=l.slice();
+    if(sortBy==="score") s.sort((a,b)=>((b.eval&&b.eval.score)||0)-((a.eval&&a.eval.score)||0));
+    else if(sortBy==="deadline") s.sort((a,b)=>{ const x=daysLeft(a.dateLimite),y=daysLeft(b.dateLimite);
+      if(x===null) return 1; if(y===null) return -1; return x-y; });
+    else s.sort((a,b)=>new Date(b.dateParution||0)-new Date(a.dateParution||0));
+    return s;
+  },[items,kinds,minScore,onlyOpen,sortBy,catalog]);
+
+  return (
+    <div>
+      {catalog && (
+        <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:"12px 15px", marginBottom:13 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:13, flexWrap:"wrap" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:9, flex:1, minWidth:190 }}>
+              <span style={{ fontSize:11, color:T.mute, fontWeight:600, whiteSpace:"nowrap" }}>Score min. {minScore}</span>
+              <input type="range" min="0" max="90" step="5" value={minScore}
+                onChange={(e)=>setMinScore(Number(e.target.value))} style={{ flex:1 }} />
+            </div>
+            <select value={sortBy} onChange={(e)=>setSortBy(e.target.value)}
+              style={Object.assign({},inputStyle,{ width:"auto", minWidth:150, fontSize:13 })}>
+              <option value="score">Tri : pertinence</option>
+              <option value="deadline">Tri : échéance</option>
+              <option value="date">Tri : parution</option>
+            </select>
+            {setOnlyOpen && (
+              <label style={{ display:"flex", alignItems:"center", gap:6, fontSize:12, color:T.body }}>
+                <input type="checkbox" checked={onlyOpen} onChange={(e)=>setOnlyOpen(e.target.checked)}
+                  style={{ accentColor:T.brand, width:16, height:16 }} />
+                Ouverts seulement
+              </label>
+            )}
+            <button onClick={()=>setShowCfg(!showCfg)} style={{ background:"none", border:"none",
+              color:T.brand, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+              {showCfg?"▲ Familles":"▼ Familles"}
+            </button>
+          </div>
+          {showCfg && (
+            <div style={{ marginTop:11, display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))", gap:3 }}>
+              {catKeys.map((k)=>{
+                const c=catalog[k], on=!!cats[k];
+                return (
+                  <div key={k} onClick={()=>setCats(Object.assign({},cats,{[k]:!on}))}
+                    style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 9px",
+                              borderRadius:6, cursor:"pointer", background:on?c.color+"12":"transparent" }}>
+                    <div style={{ width:16, height:16, borderRadius:4, flexShrink:0,
+                                   border:"2px solid "+(on?c.color:T.line), background:on?c.color:"#fff",
+                                   display:"flex", alignItems:"center", justifyContent:"center",
+                                   color:"#fff", fontSize:10, fontWeight:900 }}>{on?"✓":""}</div>
+                    <span style={{ fontSize:12.5, fontWeight:650, color:on?c.color:T.mute }}>{c.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <div style={{ background:T.hotLt, border:"1px solid "+T.hot+"44", borderRadius:7,
+                       padding:"12px 15px", marginBottom:13, fontSize:13, color:T.hot, lineHeight:1.55 }}>{error}</div>
+      )}
+
+      {shown.length===0 ? (
+        <div style={{ textAlign:"center", padding:"46px 18px", background:T.card,
+                       border:"1px solid "+T.line, borderRadius:9 }}>
+          <div style={{ fontSize:40, marginBottom:10 }}>◎</div>
+          <div style={{ fontWeight:700, color:T.ink, fontSize:16, marginBottom:5 }}>{empty}</div>
+          <div style={{ color:T.mute, fontSize:13 }}>Lancez un scan depuis la barre de commande</div>
+        </div>
+      ) : shown.map((a)=>(
+        <Card key={a.id} item={a} mode="flux" open={open} setOpen={setOpen}
+          ai={aiCache[a.id]} aiBusy={!!aiBusy[a.id]} inPipe={pipeline.some((x)=>x.id===a.id)}
+          onAnalyze={onAnalyze} onAdd={onAdd} onUpdate={()=>{}} onRemove={()=>{}} hasKey={hasKey} />
+      ))}
+    </div>
+  );
+}
+
+/* ─── PIPELINE ────────────────────────────────────────────────── */
+function TabPipeline({ pipeline, open, setOpen, aiCache, aiBusy, onAnalyze, onUpdate, onRemove, hasKey }){
+  function exportCsv(){
+    const head=["Type","Référence","Objet","Entité","Départements","Parution","Date limite","Score","Statut","Relance","Notes","URL"];
+    const rows=pipeline.map((a)=>[
+      a.kind==="ao"?"Appel d'offres":a.kind==="sig"?"BODACC":"Presse",
+      a.ref||a.id, a.objet, a.acheteur, a.depts.join(" "),
+      fmtDate(a.dateParution), fmtDate(a.dateLimite),
+      a.eval?a.eval.score:"", STATUS[a.status]?STATUS[a.status].label:a.status,
+      a.relance||"", a.notes||"", a.url||"" ]);
+    const csv=[head].concat(rows).map((r)=>r.map((c)=>{
+      const s=String(c==null?"":c); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(";")).join("\n");
+    const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const el=document.createElement("a");
+    el.href=url; el.download="pipeline-radar-ao.csv"; el.style.display="none";
+    document.body.appendChild(el); el.click();
+    setTimeout(()=>{ document.body.removeChild(el); URL.revokeObjectURL(url); },100);
+  }
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
+                     marginBottom:16, flexWrap:"wrap", gap:9 }}>
+        <div style={{ fontWeight:700, color:T.ink, fontSize:17 }}>
+          {pipeline.length} dossier{pipeline.length!==1?"s":""} suivi{pipeline.length!==1?"s":""}
+        </div>
+        <Btn onClick={exportCsv} kind="plain" disabled={pipeline.length===0}>Export CSV</Btn>
+      </div>
+      {pipeline.length===0 ? (
+        <div style={{ textAlign:"center", padding:"46px 18px", background:T.card,
+                       border:"1px solid "+T.line, borderRadius:9, color:T.mute }}>
+          <div style={{ fontSize:40, marginBottom:10 }}>◻︎</div>
+          <div style={{ fontWeight:600, color:T.body }}>Pipeline vide</div>
+        </div>
+      ) : Object.keys(STATUS).map((k)=>{
+        const items=pipeline.filter((a)=>a.status===k);
+        if(!items.length) return null;
+        const sc=STATUS[k];
+        return (
+          <div key={k} style={{ marginBottom:22 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:9 }}>
+              <div style={{ width:9, height:9, borderRadius:"50%", background:sc.color }} />
+              <span style={{ fontWeight:700, color:sc.color, fontSize:14 }}>{sc.label}</span>
+              <Chip bg={sc.bg} color={sc.color}>{items.length}</Chip>
+            </div>
+            {items.map((a)=>(
+              <Card key={a.id} item={a} mode="pipe" open={open} setOpen={setOpen}
+                ai={aiCache[a.id]} aiBusy={!!aiBusy[a.id]} inPipe={true}
+                onAnalyze={onAnalyze} onAdd={()=>{}} onUpdate={onUpdate} onRemove={onRemove} hasKey={hasKey} />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── CALENDRIER ──────────────────────────────────────────────── */
+function TabCalendrier({ pipeline, month, setMonth }){
+  const y=month.getFullYear(), m=month.getMonth();
+  const first=new Date(y,m,1).getDay(), dim=new Date(y,m+1,0).getDate();
+  const pad=first===0?6:first-1;
+  const cells=Array(pad).fill(null).concat(Array.from({length:dim},(_,i)=>i+1));
+  const today=new Date().toISOString().split("T")[0];
+
+  const byDate=useMemo(()=>{
+    const map={};
+    pipeline.forEach((a)=>{ [a.dateLimite,a.relance].forEach((d)=>{
+      if(!d) return; const k=String(d).substring(0,10);
+      if(!map[k]) map[k]=[]; if(map[k].indexOf(a)===-1) map[k].push(a); }); });
+    return map;
+  },[pipeline]);
+
+  const upcoming=useMemo(()=>{
+    const now=new Date(), lim=new Date(); lim.setDate(lim.getDate()+60);
+    return pipeline.map((a)=>({a,d:a.dateLimite||a.relance}))
+      .filter((x)=>{ if(!x.d) return false; const dt=new Date(x.d); return dt>=now&&dt<=lim; })
+      .sort((x,z)=>new Date(x.d)-new Date(z.d));
+  },[pipeline]);
+
+  return (
+    <div className="calgrid" style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:16 }}>
+      <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+          <Btn kind="plain" onClick={()=>setMonth(new Date(y,m-1))} style={{ padding:"7px 14px" }}>‹</Btn>
+          <div style={{ fontWeight:700, color:T.ink, fontSize:16 }}>
+            {month.toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).replace(/^./,(c)=>c.toUpperCase())}
+          </div>
+          <Btn kind="plain" onClick={()=>setMonth(new Date(y,m+1))} style={{ padding:"7px 14px" }}>›</Btn>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:3 }}>
+          {["L","M","M","J","V","S","D"].map((d,i)=>(
+            <div key={i} style={{ textAlign:"center", fontSize:11, fontWeight:700, color:T.mute, paddingBottom:6 }}>{d}</div>
+          ))}
+          {cells.map((day,i)=>{
+            if(!day) return <div key={"p"+i} />;
+            const ds=y+"-"+String(m+1).padStart(2,"0")+"-"+String(day).padStart(2,"0");
+            const ev=byDate[ds]||[], isToday=ds===today, isPast=ds<today;
+            return (
+              <div key={day} style={{ minHeight:52, padding:"4px 2px", borderRadius:6, textAlign:"center",
+                background:isToday?T.ink:ev.length?T.brandLt:"transparent",
+                color:isToday?"#fff":isPast?"#CBD5E1":T.body,
+                border:"1px solid "+(ev.length&&!isToday?T.brand+"44":"transparent") }}>
+                <div style={{ fontSize:12, fontWeight:isToday?700:400 }}>{day}</div>
+                {ev.slice(0,2).map((a,j)=>(
+                  <div key={j} title={a.objet} style={{ fontSize:8, marginTop:1, padding:"1px 2px",
+                    borderRadius:3, color:"#fff", background:STATUS[a.status]?STATUS[a.status].color:T.brand,
+                    overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                    {a.acheteur.substring(0,11)}
+                  </div>
+                ))}
+                {ev.length>2 && <div style={{ fontSize:9, color:T.brand }}>+{ev.length-2}</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:15 }}>
+        <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:12 }}>Échéances à 60 jours</div>
+        {upcoming.length===0 ? (
+          <div style={{ color:T.mute, fontSize:13, textAlign:"center", padding:"20px 0" }}>Rien de programmé</div>
+        ) : upcoming.map((x)=>{
+          const dl=daysLeft(x.d), sc=STATUS[x.a.status];
+          return (
+            <div key={x.a.id+x.d} style={{ borderBottom:"1px solid "+T.line, paddingBottom:9, marginBottom:9 }}>
+              <div style={{ fontSize:12, fontWeight:600, color:T.body, lineHeight:1.35 }}>
+                {x.a.objet.substring(0,58)}{x.a.objet.length>58?"…":""}
+              </div>
+              <div style={{ fontSize:11, color:T.mute, marginTop:3 }}>{x.a.acheteur.substring(0,32)}</div>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginTop:5 }}>
+                {sc && <Chip bg={sc.bg} color={sc.color}>{sc.label}</Chip>}
+                <span style={{ fontSize:12, fontWeight:700, color:urgColor(dl) }}>
+                  {dl===0?"Aujourd'hui":dl===1?"Demain":"J-"+dl}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ─── RÉGLAGES ────────────────────────────────────────────────── */
+function TabReglages({ apiKey, setApiKey, items, pipeline, meta, log, onWipe }){
+  const [draft,setDraft]=useState(apiKey);
+  const [saved,setSaved]=useState(false);
+  const ao=items.filter((a)=>a.kind==="ao").length;
+  const sig=items.filter((a)=>a.kind==="sig").length;
+  const pr=items.filter((a)=>a.kind==="presse").length;
+
+  function save(){ setApiKey(draft.trim()); setSaved(true); setTimeout(()=>setSaved(false),2200); }
+
+  return (
+    <div>
+      <div className="grid4" style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:18 }}>
+        {[{v:ao,l:"Appels d'offres",c:T.brand},{v:sig,l:"Signaux BODACC",c:T.violet},
+          {v:pr,l:"Signaux presse",c:T.cool},{v:pipeline.length,l:"Pipeline",c:T.ink}].map((k,i)=>(
+          <div key={i} style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9,
+                                 padding:"16px 18px", borderTop:"3px solid "+k.c }}>
+            <div style={{ fontSize:31, fontWeight:700, color:k.c, lineHeight:1 }}>{k.v}</div>
+            <div style={{ fontWeight:650, color:T.body, marginTop:5, fontSize:12.5 }}>{k.l}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:18, marginBottom:16 }}>
+        <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:4 }}>Clé API Anthropic</div>
+        <div style={{ fontSize:12, color:T.mute, marginBottom:12, lineHeight:1.6 }}>
+          Nécessaire pour l'analyse IA et la veille presse. Les appels d'offres et le BODACC fonctionnent sans.
+          La clé reste dans le stockage local de ce navigateur, elle n'est jamais transmise ailleurs qu'à
+          l'API Anthropic et ne figure pas dans le code source.
+        </div>
+        <div style={{ display:"flex", gap:9, flexWrap:"wrap" }}>
+          <input type="password" value={draft} onChange={(e)=>setDraft(e.target.value)}
+            placeholder="sk-ant-api03-…" style={Object.assign({},inputStyle,{ flex:1, minWidth:220 })} />
+          <Btn onClick={save} kind={saved?"ok":"solid"}>{saved?"Enregistrée":"Enregistrer"}</Btn>
+        </div>
+        <div style={{ fontSize:11, color:apiKey?T.ok:T.warm, marginTop:9, fontWeight:600 }}>
+          {apiKey ? "Clé active — analyse IA et veille presse disponibles"
+                  : "Aucune clé — les deux sources publiques restent pleinement fonctionnelles"}
+        </div>
+      </div>
+
+      <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:18, marginBottom:16 }}>
+        <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:4 }}>Journal de connexion</div>
+        <div style={{ fontSize:11, color:T.mute, marginBottom:11 }}>
+          {meta ? "Dernier scan : "+meta : "Aucun scan lancé."}
+        </div>
+        <div style={{ background:"#0F172A", color:"#94E2B8", fontFamily:"ui-monospace,Menlo,monospace",
+                       fontSize:11, lineHeight:1.65, padding:13, borderRadius:7,
+                       maxHeight:280, overflowY:"auto", whiteSpace:"pre-wrap" }}>
+          {log.length ? log.join("\n") : "—"}
+        </div>
+      </div>
+
+      <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:18 }}>
+        <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:4 }}>Données locales</div>
+        <div style={{ fontSize:12, color:T.mute, marginBottom:12, lineHeight:1.6 }}>
+          Pipeline, notes, analyses et réglages sont conservés dans ce navigateur. Exportez régulièrement
+          le CSV depuis l'onglet Pipeline si ces données comptent.
+        </div>
+        <Btn onClick={onWipe} kind="danger">Effacer toutes les données locales</Btn>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   APPLICATION
+   ══════════════════════════════════════════════════════════════ */
+function App(){
+  const [tab,setTab]=useState("ao");
+  const [items,setItems]=useState([]);
+  const [rawAO,setRawAO]=useState([]);
+  const [rawSIG,setRawSIG]=useState([]);
+  const [presse,setPresse]=useState([]);
+  const [loading,setLoading]=useState(false);
+  const [progress,setProgress]=useState("");
+  const [error,setError]=useState(null);
+  const [meta,setMeta]=useState(null);
+  const [log,setLog]=useState([]);
+
+  const [apiKey,setApiKeyState]=useState(()=>LS.getRaw("radar-key",""));
+  const [depts,setDepts]=useState(()=>LS.get("radar-depts",ALL_DEPTS));
+  const [days,setDays]=useState(()=>LS.get("radar-days",30));
+  const [pages,setPages]=useState(()=>LS.get("radar-pages",2));
+  const [sources,setSources]=useState(()=>LS.get("radar-sources",{boamp:true,bodacc:true,presse:true}));
+  const [aoCats,setAoCats]=useState(()=>LS.get("radar-aocats",(function(){const o={};AO_KEYS.forEach((k)=>{o[k]=true;});return o;})()));
+  const [sigCats,setSigCats]=useState(()=>LS.get("radar-sigcats",(function(){const o={};SIG_KEYS.forEach((k)=>{o[k]=true;});return o;})()));
+  const [minScore,setMinScore]=useState(()=>LS.get("radar-min",20));
+  const [sigMinScore,setSigMinScore]=useState(()=>LS.get("radar-sigmin",20));
+  const [onlyOpen,setOnlyOpen]=useState(()=>LS.get("radar-open",true));
+  const [sortBy,setSortBy]=useState("score");
+  const [sigSortBy,setSigSortBy]=useState("score");
+
+  const [pipeline,setPipeline]=useState(()=>LS.get("radar-pipe",[]));
+  const [aiCache,setAiCache]=useState(()=>LS.get("radar-ai",{}));
+  const [aiBusy,setAiBusy]=useState({});
+  const [open,setOpen]=useState(null);
+  const [month,setMonth]=useState(new Date());
+
+  const logRef=useRef([]);
+  const addLog=useCallback((l)=>{ logRef.current=logRef.current.concat([l]).slice(-180); setLog(logRef.current); },[]);
+
+  const setApiKey=useCallback((k)=>{ setApiKeyState(k); LS.setRaw("radar-key",k); },[]);
+
+  useEffect(()=>{ LS.set("radar-pipe",pipeline); },[pipeline]);
+  useEffect(()=>{ LS.set("radar-ai",aiCache); },[aiCache]);
+  useEffect(()=>{ LS.set("radar-depts",depts); },[depts]);
+  useEffect(()=>{ LS.set("radar-days",days); },[days]);
+  useEffect(()=>{ LS.set("radar-pages",pages); },[pages]);
+  useEffect(()=>{ LS.set("radar-sources",sources); },[sources]);
+  useEffect(()=>{ LS.set("radar-aocats",aoCats); },[aoCats]);
+  useEffect(()=>{ LS.set("radar-sigcats",sigCats); },[sigCats]);
+  useEffect(()=>{ LS.set("radar-min",minScore); },[minScore]);
+  useEffect(()=>{ LS.set("radar-sigmin",sigMinScore); },[sigMinScore]);
+  useEffect(()=>{ LS.set("radar-open",onlyOpen); },[onlyOpen]);
+
+  /* Re-scoring à chaud */
+  useEffect(()=>{
+    const out=[];
+    rawAO.forEach((r)=>{ const n=normalizeAO(r); if(!n) return;
+      if(depts.length && n.depts.length && !n.depts.some((d)=>depts.indexOf(d)!==-1)) return;
+      const ev=scoreItem(n.hay,AO_CATS,AO_KEYS,aoCats); if(ev) out.push(Object.assign({},n,{eval:ev})); });
+    rawSIG.forEach((r)=>{ const n=normalizeSignal(r); if(!n) return;
+      if(depts.length && n.depts.length && !n.depts.some((d)=>depts.indexOf(d)!==-1)) return;
+      const ev=scoreItem(n.hay,SIG_CATS,SIG_KEYS,sigCats); if(ev) out.push(Object.assign({},n,{eval:ev})); });
+    presse.forEach((p)=>out.push(p));
+    setItems(out);
+  },[rawAO,rawSIG,presse,aoCats,sigCats,depts]);
+
+  /* Scan */
+  const run=useCallback(async()=>{
+    if(depts.length===0){ setError("Sélectionnez au moins un département."); return; }
+    setLoading(true); setError(null); setMeta(null);
+    setRawAO([]); setRawSIG([]); setPresse([]);
+    logRef.current=[]; setLog([]);
+    addLog("Scan — "+depts.join(",")+" · "+days+"j · "+pages*100+"/source");
+    const via=[];
+    try{
+      if(sources.boamp){
+        const r=await scanBOAMP(depts,days,pages,addLog,setProgress);
+        if(r){ setRawAO(r.rows); via.push("BOAMP:"+r.via); } else addLog("BOAMP — aucune donnée");
+      }
+      if(sources.bodacc){
+        const r=await scanBODACC(depts,days,pages,addLog,setProgress);
+        if(r){ setRawSIG(r.rows); via.push("BODACC:"+r.via); } else addLog("BODACC — aucune donnée");
+      }
+      if(sources.presse){
+        const r=await scanPresse(apiKey,depts,addLog,setProgress);
+        setPresse(r); if(r.length) via.push("Presse:IA");
+      }
+      setMeta(via.join(" · ")||"aucune source");
+      if(via.length===0) setError("Aucune source n'a répondu. Consultez le journal dans Réglages.");
+      addLog("Scan terminé");
+    }catch(e){
+      setError("Erreur : "+((e&&e.message)||String(e)));
+      addLog("EXCEPTION — "+((e&&e.message)||String(e)));
+    }finally{ setLoading(false); setProgress(""); }
+  },[depts,days,pages,sources,apiKey,addLog]);
+
+  /* Analyse IA */
+  const onAnalyze=useCallback(async(it)=>{
+    if(aiCache[it.id]||aiBusy[it.id]) return;
+    if(!apiKey){ setAiCache((p)=>Object.assign({},p,{[it.id]:{error:"clé API absente — onglet Réglages"}})); return; }
+    setAiBusy((p)=>Object.assign({},p,{[it.id]:true}));
+    const ctx = it.kind==="ao"
+      ? "APPEL D'OFFRES\nObjet : "+it.objet+"\nAcheteur : "+it.acheteur+
+        "\nDate limite : "+fmtDate(it.dateLimite)+"\nType : "+it.typeAvis+" "+it.procedure+
+        "\nDescripteurs : "+String(it.descripteur||"").substring(0,400)
+      : it.kind==="sig"
+      ? "ANNONCE BODACC\nEntité : "+it.societe+"\nFamille : "+it.famille+
+        "\nVille : "+it.ville+"\nContenu : "+String(it.details||"").substring(0,700)
+      : "SIGNAL PRESSE\nEntreprise : "+it.societe+"\nSignal : "+it.signal+"\nSource : "+it.source;
+    try{
+      const data=await callClaude(apiKey,{
+        model:"claude-sonnet-4-20250514", max_tokens:900,
+        system:"Tu es analyste en développement commercial, spécialisé en services financiers aux entreprises et collectivités : moyens de paiement, encaissement, monétique, flux domestiques et internationaux, trésorerie, avantages salariés. Tu réponds UNIQUEMENT en JSON valide, sans markdown ni backtick.",
+        messages:[{ role:"user", content:
+          "Analyse ce signal d'affaires et retourne exactement ce JSON :\n"+
+          '{"besoin":"le besoin réel derrière ce signal, en 2 phrases concrètes",'+
+          '"angle":"l\'approche commerciale la plus efficace, formulée comme une action",'+
+          '"interlocuteur":"la fonction précise à cibler (DAF, trésorier, DSI, régisseur, DRH, acheteur...)",'+
+          '"vigilance":"le principal risque ou obstacle à anticiper"}\n\n'+ctx }],
+      });
+      const txt=data&&data.content&&data.content[0]&&data.content[0].text?data.content[0].text:"";
+      const parsed=extractJSON(txt);
+      setAiCache((p)=>Object.assign({},p,{[it.id]:parsed||{error:"réponse illisible"}}));
+    }catch(e){
+      setAiCache((p)=>Object.assign({},p,{[it.id]:{error:(e&&e.message)||"erreur"}}));
+    }finally{ setAiBusy((p)=>Object.assign({},p,{[it.id]:false})); }
+  },[aiCache,aiBusy,apiKey]);
+
+  const onAdd=useCallback((it)=>{
+    setPipeline((p)=> p.some((x)=>x.id===it.id) ? p
+      : [Object.assign({},it,{status:"a_etudier",notes:"",relance:null,addedAt:new Date().toISOString()})].concat(p));
+  },[]);
+  const onUpdate=useCallback((id,u)=>{ setPipeline((p)=>p.map((a)=>a.id===id?Object.assign({},a,u):a)); },[]);
+  const onRemove=useCallback((id)=>{ setPipeline((p)=>p.filter((a)=>a.id!==id)); },[]);
+
+  const onWipe=useCallback(()=>{
+    if(!window.confirm("Effacer le pipeline, les analyses et tous les réglages ? Cette action est définitive.")) return;
+    ["radar-pipe","radar-ai","radar-depts","radar-days","radar-pages","radar-sources",
+     "radar-aocats","radar-sigcats","radar-min","radar-sigmin","radar-open","radar-key"]
+      .forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
+    window.location.reload();
+  },[]);
+
+  const nAO=items.filter((a)=>a.kind==="ao").length;
+  const nSIG=items.filter((a)=>a.kind==="sig").length;
+  const nPR=items.filter((a)=>a.kind==="presse").length;
+  const urgent=pipeline.filter((a)=>{ const d=daysLeft(a.dateLimite||a.relance); return d!==null&&d>=0&&d<=7; }).length;
+  const hasKey=!!apiKey;
+
+  const TABS=[
+    { id:"ao", label:"Appels d'offres"+(nAO?" · "+nAO:"") },
+    { id:"signaux", label:"Signaux dirigeants"+(nSIG?" · "+nSIG:"") },
+    { id:"presse", label:"Presse & SI"+(nPR?" · "+nPR:"") },
+    { id:"pipeline", label:"Pipeline"+(pipeline.length?" · "+pipeline.length:"") },
+    { id:"calendrier", label:"Calendrier" },
+    { id:"reglages", label:"Réglages" },
+  ];
+  const showBar=["ao","signaux","presse"].indexOf(tab)!==-1;
+
+  return (
+    <div style={{ minHeight:"100vh", background:T.bg }}>
+      <header className="app" style={{ background:T.ink, color:"#fff", padding:"15px 20px",
+                        display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <div style={{ width:38, height:38, borderRadius:10, background:T.brand,
+                         display:"flex", alignItems:"center", justifyContent:"center", fontSize:19 }}>◎</div>
+          <div>
+            <div style={{ fontWeight:700, fontSize:17, letterSpacing:-0.2 }}>Radar AO</div>
+            <div style={{ fontSize:11, opacity:0.62, marginTop:1 }}>
+              Appels d'offres · Mouvements dirigeants · Signaux SI
+            </div>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:6, fontSize:12 }}>
+          {[{v:nAO+nSIG+nPR,l:"signaux",h:false},{v:pipeline.length,l:"suivis",h:false},{v:urgent,l:"urgents",h:urgent>0}]
+            .map((s,i)=>(
+            <div key={i} style={{ padding:"5px 11px", borderRadius:18, display:"flex", alignItems:"center", gap:5,
+              background:s.h?"rgba(220,38,38,.28)":"rgba(255,255,255,.1)",
+              border:s.h?"1px solid rgba(220,38,38,.55)":"1px solid transparent" }}>
+              <strong>{s.v}</strong><span style={{ opacity:0.7 }}>{s.l}</span>
+            </div>
+          ))}
+        </div>
+      </header>
+
+      <nav className="scroll-x" style={{ background:T.ink, display:"flex", padding:"0 12px",
+                                          borderBottom:"2px solid "+T.brand }}>
+        {TABS.map((t)=>(
+          <button key={t.id} onClick={()=>setTab(t.id)}
+            style={{ background:"none", border:"none", cursor:"pointer", padding:"11px 14px",
+                      fontSize:13, marginBottom:-2, whiteSpace:"nowrap",
+                      color:tab===t.id?"#fff":"rgba(255,255,255,.52)",
+                      fontWeight:tab===t.id?700:500,
+                      borderBottom:"2px solid "+(tab===t.id?T.brand:"transparent") }}>
+            {t.label}
+          </button>
+        ))}
+      </nav>
+
+      <main className="app" style={{ maxWidth:1340, margin:"0 auto", padding:20 }}>
+        {showBar && (
+          <CommandBar depts={depts} setDepts={setDepts} days={days} setDays={setDays}
+            pages={pages} setPages={setPages} run={run} loading={loading} progress={progress}
+            sources={sources} setSources={setSources} hasKey={hasKey} />
+        )}
+
+        {tab==="ao" && (
+          <TabFlux items={items} kinds={["ao"]} empty="Aucun appel d'offres détecté"
+            cats={aoCats} setCats={setAoCats} catalog={AO_CATS} catKeys={AO_KEYS}
+            minScore={minScore} setMinScore={setMinScore}
+            onlyOpen={onlyOpen} setOnlyOpen={setOnlyOpen}
+            sortBy={sortBy} setSortBy={setSortBy}
+            open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={error} hasKey={hasKey} />
+        )}
+        {tab==="signaux" && (
+          <TabFlux items={items} kinds={["sig"]} empty="Aucun mouvement détecté"
+            cats={sigCats} setCats={setSigCats} catalog={SIG_CATS} catKeys={SIG_KEYS}
+            minScore={sigMinScore} setMinScore={setSigMinScore}
+            onlyOpen={false} setOnlyOpen={null}
+            sortBy={sigSortBy} setSortBy={setSigSortBy}
+            open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} />
+        )}
+        {tab==="presse" && (
+          <TabFlux items={items} kinds={["presse"]} empty={hasKey?"Aucun signal presse":"Renseignez votre clé API dans Réglages"}
+            cats={null} setCats={null} catalog={null} catKeys={[]}
+            minScore={0} setMinScore={()=>{}}
+            onlyOpen={false} setOnlyOpen={null}
+            sortBy="date" setSortBy={()=>{}}
+            open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} />
+        )}
+        {tab==="pipeline" && (
+          <TabPipeline pipeline={pipeline} open={open} setOpen={setOpen}
+            aiCache={aiCache} aiBusy={aiBusy} onAnalyze={onAnalyze}
+            onUpdate={onUpdate} onRemove={onRemove} hasKey={hasKey} />
+        )}
+        {tab==="calendrier" && <TabCalendrier pipeline={pipeline} month={month} setMonth={setMonth} />}
+        {tab==="reglages" && (
+          <TabReglages apiKey={apiKey} setApiKey={setApiKey} items={items} pipeline={pipeline}
+            meta={meta} log={log} onWipe={onWipe} />
+        )}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
