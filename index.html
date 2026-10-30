@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Radar AO</title>
+<title>Radar Business</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Radar AO">
+<meta name="apple-mobile-web-app-title" content="Radar Business">
 <meta name="theme-color" content="#0F172A">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230F172A'/%3E%3Ccircle cx='90' cy='90' r='46' fill='none' stroke='%234338CA' stroke-width='10'/%3E%3Ccircle cx='90' cy='90' r='16' fill='%234338CA'/%3E%3C/svg%3E">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F172A'/%3E%3Ccircle cx='32' cy='32' r='17' fill='none' stroke='%234338CA' stroke-width='4'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%234338CA'/%3E%3C/svg%3E">
@@ -21,6 +21,13 @@
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#334155}
   button,input,select,textarea{font-family:inherit}
   input[type=range]{accent-color:#4338CA}
+  @media print{
+    body *{visibility:hidden}
+    .brief-print,.brief-print *{visibility:visible}
+    .brief-print{position:absolute;left:0;top:0;width:100%;max-width:none!important}
+    .brief-overlay{position:static!important;background:none!important;padding:0!important}
+    .no-print{display:none!important}
+  }
   #boot{padding:60px 24px;text-align:center;color:#94A3B8;font-size:14px}
   .scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch}
   .scroll-x::-webkit-scrollbar{height:0}
@@ -38,7 +45,7 @@
 </style>
 </head>
 <body>
-<div id="root"><div id="boot">Chargement de Radar AO…</div></div>
+<div id="root"><div id="boot">Chargement de Radar Business…</div></div>
 
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
@@ -66,7 +73,7 @@ const AO_CATS = {
     "services bancaires","service bancaire","prestations bancaires","prestation bancaire",
     "marche bancaire","marches bancaires","etablissement bancaire","compte bancaire",
     "tenue de compte","gestion de compte","mandataire financier","regie de recettes",
-    "regie d'avances","comptable public","banque","bancaire"]},
+    "regie d'avances","comptable public","bancaire","66110000","66100000","66600000"]},
   encaissement:{ label:"Encaissement & monétique", weight:10, color:T.hot, terms:[
     "monetique","tpe","terminal de paiement","terminaux de paiement","acquisition monetique",
     "encaissement","encaissements","carte bancaire","cartes bancaires","paiement de proximite",
@@ -89,7 +96,7 @@ const AO_CATS = {
     "titre restaurant","titres restaurant","titre-restaurant","titres-restaurant","cheque dejeuner",
     "cheques dejeuner","ticket restaurant","tickets restaurant","carte restaurant","cheque vacances",
     "cheques vacances","cesu","cheque emploi service","avantages salaries","cheque cadeau",
-    "cheques cadeaux","carte cadeau","action sociale","oeuvres sociales","comite social","cse",
+    "cheques cadeaux","carte cadeau","30199770","action sociale","oeuvres sociales","comite social","cse",
     "prestations sociales","cheque culture","forfait mobilite","mobilite durable"]},
   amont:{ label:"Signaux amont (SI)", weight:6, color:T.ok, terms:[
     "sap","s/4hana","erp","oracle financials","kyriba","sage xrt","logiciel de tresorerie","tms",
@@ -127,12 +134,56 @@ const SIG_CATS = {
 const SIG_KEYS = Object.keys(SIG_CATS);
 
 const STATUS = {
+  a_approcher:{ label:"À approcher", color:T.brand, bg:T.brandLt },
+  contacte:{ label:"Contacté", color:T.cool, bg:T.coolLt },
+  connecte:{ label:"Connecté", color:T.cool, bg:T.coolLt },
+  rdv:{ label:"RDV obtenu", color:T.warm, bg:T.warmLt },
+  opportunite:{ label:"Opportunité", color:T.violet, bg:T.violetLt },
   a_etudier:{ label:"À étudier", color:T.brand, bg:T.brandLt },
   en_cours:{ label:"En cours", color:T.warm, bg:T.warmLt },
   depose:{ label:"Déposé", color:T.violet, bg:T.violetLt },
   gagne:{ label:"Gagné", color:T.ok, bg:T.okLt },
   perdu:{ label:"Non retenu", color:T.mute, bg:T.bg },
 };
+/* Statuts proposés selon la nature du dossier */
+const STATUS_AO = ["a_etudier","en_cours","depose","gagne","perdu"];
+const STATUS_PROSPECT = ["a_approcher","contacte","connecte","rdv","opportunite","gagne","perdu"];
+const statusKeysFor = (kind) => kind==="ao" ? STATUS_AO : STATUS_PROSPECT;
+
+/* ─── SIGNAUX D'AFFAIRES (veille hebdomadaire) ────────────────── */
+const AF_STATUT = {
+  "Go":{ color:T.ok, bg:T.okLt },
+  "À qualifier":{ color:T.warm, bg:T.warmLt },
+  "Hors cible":{ color:T.mute, bg:T.bg },
+};
+/* Semaine 2026-S44 — remplacée par chaque import hebdomadaire */
+const AFFAIRES_DEFAUT = [{"entreprise": "COFAQ", "lieu": "Hauts-de-France", "date": "2026-10-08", "type": "Nomination", "fait": "Crée un poste de directeur de la croissance externe et des alliances réseaux, confié à Frédéric Lagante. Coopérative : 65 M€ de CA 2024, 200 salariés.", "taille": 3, "fraicheur": 3, "flux": 2, "acces": 3, "offre": "Centralisation de trésorerie réseau, financement d'acquisitions, encaissements adhérents", "cible": "Frédéric Lagante (nouveau poste) puis DAF", "angle": "Un poste de croissance externe tout neuf = des rachats à venir. Se positionner avant le premier deal : structuration des flux d'un réseau qui grossit.", "message": "Bonjour Frédéric, félicitations pour ce nouveau poste à la COFAQ. J'accompagne en Hauts-de-France des réseaux en croissance externe sur la structuration de leurs flux et de leur trésorerie. Ravi d'échanger si le sujet se présente.", "source": "https://www.lejournaldesentreprises.com/secteurs-activite/services/commerce", "score": 11, "statut": "Go", "semaine": "2026-S44"}, {"entreprise": "Alkior Groupe", "lieu": "Hauts-de-France", "date": "2026-10-07", "type": "Croissance externe", "fait": "Acquiert Techniques Service (rabattement de nappe, Occitanie et PACA). Groupe : plus de 40 M€ de CA, environ 140 collaborateurs.", "taille": 3, "fraicheur": 3, "flux": 2, "acces": 2, "offre": "Cash pooling TRÉO, EBICS multi-entités, cartes affaires", "cible": "DAF / directeur financier du groupe", "angle": "Une filiale hors région s'ajoute : comptes éclatés, visibilité trésorerie dégradée. Les 100 premiers jours post-rachat sont le moment de proposer la centralisation.", "message": "Bonjour, j'ai vu l'acquisition de Techniques Service par Alkior, bravo. Intégrer une filiale hors région pose souvent la question de la centralisation de trésorerie et des flux. C'est mon métier à la Banque Populaire du Nord, ravi d'en parler si c'est d'actualité.", "source": "https://www.lejournaldesentreprises.com/hauts-de-france/toute-lactu-eco-en-hauts-de-france", "score": 10, "statut": "Go", "semaine": "2026-S44"}, {"entreprise": "Kiabi", "lieu": "Hauts-de-France", "date": "2026-10-13", "type": "International", "fait": "Ouvre son premier magasin en Macédoine du Nord.", "taille": 3, "fraicheur": 3, "flux": 3, "acces": 0, "offre": "Flux internationaux, change, monétique multi-pays", "cible": "Trésorerie groupe (via l'interlocuteur BPN existant)", "angle": "Nom déjà présent dans tes dossiers : vérifier qui porte la relation chez BPN avant toute approche. Nouveau pays = nouveaux besoins de rapatriement et de change.", "message": "", "source": "https://www.lejournaldesentreprises.com/regions/france/hauts-de-france", "score": 9, "statut": "Go", "semaine": "2026-S44"}, {"entreprise": "Van Den Casteele", "lieu": "Bailleul (59)", "date": "2026-10-01", "type": "Investissement", "fait": "Le glacier nordiste regroupe stockage et fabrication sur un foncier de 6 000 m² à Bailleul : 20 M€ investis, travaux fin 2026, objectif doubler la production.", "taille": 2, "fraicheur": 2, "flux": 2, "acces": 2, "offre": "Financement CAPEX, flux GMS, gestion des encaissements", "cible": "Dirigeant / DAF", "angle": "Doubler la production = doubler les volumes facturés et encaissés. Arriver avec un diagnostic flux pendant que le financement du chantier se boucle.", "message": "Bonjour, j'ai lu votre projet de regroupement à Bailleul, belle ambition. Doubler la production change souvent la donne côté encaissements et trésorerie. J'accompagne ces sujets à la Banque Populaire du Nord, ravi d'échanger.", "source": "https://www.usinenouvelle.com/quotidien-des-usines/investissements-industriels/", "score": 8, "statut": "Go", "semaine": "2026-S44"}, {"entreprise": "La Brosserie Française", "lieu": "Hauts-de-France", "date": "2026-10-26", "type": "Subvention", "fait": "Retenue pour des fonds européens parmi 172 projets validés en Hauts-de-France le 15 octobre (près de 71 M€ au total).", "taille": 2, "fraicheur": 3, "flux": 1, "acces": 2, "offre": "Préfinancement de subvention, flux export", "cible": "Dirigeant / DAF", "angle": "Une subvention européenne se perçoit tard : besoin de trésorerie relais pendant le projet. Porte d'entrée pour ouvrir ensuite les flux.", "message": "Bonjour, félicitations pour la sélection de votre projet aux fonds européens. Ces financements arrivent souvent après les dépenses : si la question de la trésorerie relais se pose, je serais ravi d'en parler.", "source": "https://www.lejournaldesentreprises.com/hauts-de-france/toute-lactu-eco-en-hauts-de-france", "score": 8, "statut": "Go", "semaine": "2026-S44"}, {"entreprise": "Groupe Joigneaux", "lieu": "Pont-à-Marcq (59)", "date": "2026-10-07", "type": "Croissance externe", "fait": "Reprend les Transports Seingier (une trentaine de salariés, 24 camions). Cession accompagnée par le Crédit Agricole Nord de France.", "taille": 2, "fraicheur": 3, "flux": 2, "acces": 0, "offre": "Cartes carburant/péage, flux fournisseurs, garanties", "cible": "Dirigeant du groupe", "angle": "Concurrent déjà dans le deal : jouer la complémentarité (moyens de paiement flotte) plutôt que l'attaque frontale.", "message": "", "source": "https://www.fusacq.com/achat-entreprise-transport-routier-rhone,18096_fr_", "score": 7, "statut": "À qualifier", "semaine": "2026-S44"}, {"entreprise": "Insitoo", "lieu": "Hauts-de-France", "date": "2026-10-15", "type": "Croissance externe", "fait": "Acquiert Link Consulting, cabinet de recrutement IT basé à Toulouse.", "taille": 1, "fraicheur": 3, "flux": 1, "acces": 2, "offre": "Multi-entités, centralisation de trésorerie", "cible": "Fondateur / DAF", "angle": "Taille à vérifier avant d'investir du temps.", "message": "", "source": "https://www.lejournaldesentreprises.com/regions/france/hauts-de-france", "score": 7, "statut": "À qualifier", "semaine": "2026-S44"}, {"entreprise": "Ecocem France", "lieu": "Dunkerque (59)", "date": "2026-10-20", "type": "Investissement", "fait": "Investit 50 M€ à Dunkerque. 137,4 M€ de CA en 2024, entre 50 et 99 salariés.", "taille": 3, "fraicheur": 3, "flux": 1, "acces": 0, "offre": "Flux locaux, financement", "cible": "Directeur de site / finance France", "angle": "Filiale d'un groupe étranger : trésorerie probablement pilotée hors de France. Vérifier ce qui se décide localement.", "message": "", "source": "https://www.lejournaldesentreprises.com/hauts-de-france/toute-lactu-eco-en-hauts-de-france", "score": 7, "statut": "À qualifier", "semaine": "2026-S44"}, {"entreprise": "Klégé", "lieu": "Arras (62)", "date": "2026-10-09", "type": "Reprise", "fait": "Offre de reprise des salariés et de Ludwig Czelecz déposée à Arras.", "taille": 1, "fraicheur": 3, "flux": 1, "acces": 2, "offre": "Ouverture de relation complète (comptes, moyens de paiement, garanties)", "cible": "Repreneurs, si l'offre est retenue", "angle": "Une société reprise repart souvent de zéro côté banque. Attendre la décision du tribunal, prudence sur le risque.", "message": "", "source": "https://www.lejournaldesentreprises.com/regions/france/hauts-de-france", "score": 7, "statut": "À qualifier", "semaine": "2026-S44"}, {"entreprise": "Emil Frey France", "lieu": "Liévin (62)", "date": "2026-10-01", "type": "Croissance externe", "fait": "Projet d'acquisition du groupe Gorrias par Emil Frey Pro.", "taille": 3, "fraicheur": 2, "flux": 2, "acces": 0, "offre": "Flux multi-concessions", "cible": "Finance France", "angle": "Groupe suisse : décisions bancaires probablement centralisées.", "message": "", "source": "https://www.usinenouvelle.com/hauts-de-france/pas-de-calais/", "score": 7, "statut": "À qualifier", "semaine": "2026-S44"}, {"entreprise": "Devlaeminck Distribution", "lieu": "Cysoing (59)", "date": "2026-07-17", "type": "Croissance externe", "fait": "Rachète le valenciennois B & A Tex (Express EPI, EuroLogo), après Bébé Cash en 2024.", "taille": 2, "fraicheur": 1, "flux": 2, "acces": 2, "offre": "Centralisation multi-entités, e-commerce", "cible": "Dirigeant", "angle": "Rachats en série : signal ancien mais pattern fort, à relancer.", "message": "", "source": "https://www.lejournaldesentreprises.com/regions/france/hauts-de-france/nord/lille", "score": 7, "statut": "À qualifier", "semaine": "2026-S44"}, {"entreprise": "DV Group", "lieu": "Pas-de-Calais", "date": "2026-10-15", "type": "Croissance externe", "fait": "Acquisition de JANUS Engineering.", "taille": 1, "fraicheur": 3, "flux": 1, "acces": 1, "offre": "À définir", "cible": "À identifier", "angle": "Trop peu d'éléments publics : à creuser.", "message": "", "source": "https://www.usinenouvelle.com/hauts-de-france/pas-de-calais/", "score": 6, "statut": "À qualifier", "semaine": "2026-S44"}, {"entreprise": "Mon Extension Bois", "lieu": "Attiches (59)", "date": "2026-06-11", "type": "Réseau franchise", "fait": "Mise sur la franchise pour doubler son activité (CA autour de 1,3 M€, 2 à 3 franchises par an).", "taille": 1, "fraicheur": 0, "flux": 2, "acces": 3, "offre": "Prélèvements SEPA de redevances, encaissements réseau", "cible": "Damien Branly, gérant associé", "angle": "Petit mais idéal pour une offre réseau franchise.", "message": "", "source": "https://www.lejournaldesentreprises.com/article/mon-extension-bois-mise-sur-la-franchise-pour-doubler-son-activite-2143967", "score": 6, "statut": "À qualifier", "semaine": "2026-S44"}, {"entreprise": "Purina (Nestlé)", "lieu": "Marconnelle (62)", "date": "2026-10-02", "type": "Investissement", "fait": "160 M€ investis en cinq ans dans l'usine, extension prévue en 2028.", "taille": 3, "fraicheur": 3, "flux": 0, "acces": 0, "offre": "—", "cible": "—", "angle": "Grand groupe : intérêt indirect (fournisseurs, environ 250 agriculteurs partenaires).", "message": "", "source": "https://www.lejournaldesentreprises.com/regions/france/hauts-de-france", "score": 6, "statut": "Hors cible", "semaine": "2026-S44"}, {"entreprise": "Valdunes", "lieu": "Nord", "date": "2026-10-15", "type": "Difficulté", "fait": "L'État confirme la recherche d'un nouveau repreneur.", "taille": 2, "fraicheur": 3, "flux": 0, "acces": 0, "offre": "—", "cible": "—", "angle": "Veille : le futur repreneur sera, lui, un signal.", "message": "", "source": "https://laclepublique.fr/nord/recap/2026-w42/", "score": 5, "statut": "Hors cible", "semaine": "2026-S44"}, {"entreprise": "PPG", "lieu": "Ruitz (62) / Moreuil (80)", "date": "2026-09-02", "type": "Investissement", "fait": "40 M€ sur ses deux sites, 39 emplois d'ici 2027, logistique internalisée à Ruitz.", "taille": 3, "fraicheur": 1, "flux": 0, "acces": 0, "offre": "—", "cible": "—", "angle": "Grand groupe coté, trésorerie centralisée : intérêt indirect (sous-traitants locaux).", "message": "", "source": "https://www.lejournaldesentreprises.com/article/ppg-investit-40-millions-deuros-dans-ses-usines-des-hauts-de-france-et-va-creer-39-emplois-2147173", "score": 4, "statut": "Hors cible", "semaine": "2026-S44"}];
+
+function normalizeAffaire(s){
+  if(!s || !s.entreprise) return null;
+  const m = String(s.lieu||"").match(/\((\d{2})\)/);
+  return Object.assign({}, s, {
+    kind:"affaire",
+    id:"af-"+norm(s.entreprise).replace(/[^a-z0-9]+/g,"-").substring(0,40)+"-"+(s.date||""),
+    objet:s.entreprise, societe:s.entreprise, acheteur:s.entreprise,
+    dateParution:s.date||null, dateLimite:null,
+    depts: m && DEPTS[m[1]] ? [m[1]] : [],
+    score: Number(s.score)||0,
+    url: s.source||"",
+  });
+}
+
+/* Rapprochement d'entités entre sources (même entreprise vue ailleurs) */
+const LEGAL = /\b(sas|sasu|sa|sarl|eurl|sci|snc|groupe|group|france|holding|societe|ste|et|cie|the)\b/g;
+const entityKey = (name) => norm(name).replace(/\(.*?\)/g," ").replace(/[^a-z0-9 ]+/g," ")
+  .replace(LEGAL," ").replace(/\s+/g," ").trim();
+function sameEntity(a,b){
+  if(!a || !b || a.length<4 || b.length<4) return false;
+  if(a===b) return true;
+  const re = (k) => new RegExp("(^| )"+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"( |$)");
+  return (a.length>=5 && re(a).test(b)) || (b.length>=5 && re(b).test(a));
+}
+const KIND_LABEL = { affaire:"Signaux d'affaires", ao:"Appels d'offres", sig:"BODACC", presse:"Presse" };
 
 /* ─── UTILS ───────────────────────────────────────────────────── */
 const norm = (s) => String(s||"").toLowerCase().normalize("NFD")
@@ -142,6 +193,25 @@ const daysLeft = (d) => { if(!d) return null; const x=new Date(d); return isNaN(
 const urgColor = (n) => n===null?T.mute:n<0?T.mute:n<=7?T.hot:n<=21?T.warm:T.ok;
 const pick = (o,ks)=>{ for(let i=0;i<ks.length;i++){ const v=o[ks[i]]; if(v!==null&&v!==undefined&&v!==""&&v!=="null") return v; } return null; };
 const asArr = (v)=> v===null||v===undefined?[]:Array.isArray(v)?v:[v];
+
+/* Modèle IA utilisé partout : à changer ici seulement */
+const MODEL = "claude-sonnet-5-5";
+
+/* Dates locales AAAA-MM-JJ */
+const isoDay = (d) => { const x=d||new Date(); return x.getFullYear()+"-"+String(x.getMonth()+1).padStart(2,"0")+"-"+String(x.getDate()).padStart(2,"0"); };
+const todayISO = () => isoDay(new Date());
+const addDays = (n) => { const x=new Date(); x.setDate(x.getDate()+n); return isoDay(x); };
+
+function downloadCsv(name, head, rows){
+  const csv=[head].concat(rows).map((r)=>r.map((c)=>{
+    const s=String(c==null?"":c); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(";")).join("\n");
+  const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const el=document.createElement("a");
+  el.href=url; el.download=name; el.style.display="none";
+  document.body.appendChild(el); el.click();
+  setTimeout(()=>{ document.body.removeChild(el); URL.revokeObjectURL(url); },100);
+}
 
 /* Stockage local */
 const LS = {
@@ -159,12 +229,24 @@ function extractJSON(text){
   try{ return JSON.parse(c.substring(s,e+1)); }catch(_){ return null; }
 }
 
+/* Correspondance en mots entiers (pluriel en -s/-x toléré) :
+   évite « tpe » dans « type », « vente » dans « prévention », « devise » dans « devis »… */
+const RX_CACHE = {};
+function termRx(t){
+  if(!RX_CACHE[t]){
+    const esc = t.replace(/[.*+?^${}()|[\]\\\/]/g,"\\$&").replace(/ /g,"[\\s\\-]+");
+    RX_CACHE[t] = new RegExp("(^|[^a-z0-9])"+esc+"(s|x)?(?=[^a-z0-9]|$)");
+  }
+  return RX_CACHE[t];
+}
+const hasTerm = (hay,t) => termRx(t).test(hay);
+
 function scoreItem(hay, catalog, keys, enabled){
   let raw=0; const matched=[], hits=[];
   keys.forEach(function(k){
     if(enabled && !enabled[k]) return;
     const c=catalog[k];
-    const found=c.terms.filter(function(t){ return hay.indexOf(t)!==-1; });
+    const found=c.terms.filter(function(t){ return hasTerm(hay,t); });
     if(found.length){
       raw += c.weight + Math.min(found.length-1,4)*1.5;
       matched.push(k);
@@ -181,11 +263,12 @@ function scoreItem(hay, catalog, keys, enabled){
    COUCHE DONNÉES
    ══════════════════════════════════════════════════════════════ */
 const ENDPOINTS = {
-  boamp:"https://www.boamp.fr/api/explore/v2.1/catalog/datasets/boamp/records",
+  boamp:"https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records",
+  boampAlt:"https://www.boamp.fr/api/explore/v2.1/catalog/datasets/boamp/records",
   bodacc:"https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records",
 };
 
-async function fetchJSON(url, log){
+async function fetchJSON(url, log, quiet){
   const routes=[
     { n:"Direct", u:url },
     { n:"corsproxy", u:"https://corsproxy.io/?url="+encodeURIComponent(url) },
@@ -194,7 +277,11 @@ async function fetchJSON(url, log){
   for(let i=0;i<routes.length;i++){
     try{
       const r=await fetch(routes[i].u,{ headers:{ Accept:"application/json" } });
-      if(!r.ok){ log("  ✗ "+routes[i].n+" → HTTP "+r.status); continue; }
+      if(!r.ok){
+        log("  ✗ "+routes[i].n+" → HTTP "+r.status);
+        if(r.status===400 && i===0) return { bad:true };   /* requête refusée : inutile d'essayer les proxys */
+        continue;
+      }
       const d=await r.json();
       log("  ✓ "+routes[i].n);
       return { data:d, via:routes[i].n };
@@ -246,41 +333,75 @@ function normalizeAO(r0){
     dateParution: pick(r,["dateparution","date_parution"]),
     dateLimite: pick(r,["datelimitereponse","date_limite_reponse","datelimite","dlro"]),
     depts, descripteur,
-    typeAvis:String(pick(r,["type_avis","typeavis","nature_libelle"])||""),
+    typeAvis:String(pick(r,["nature_libelle","type_avis","typeavis"])||""),
+    resultat:/resultat|attribution/.test(norm(pick(r,["nature_libelle","nature","type_avis"])||"")),
     procedure:String(pick(r,["procedure_libelle","procedure"])||""),
     url: pick(r,["url_avis","urlavis"]) || (idweb?"https://www.boamp.fr/avis/detail/"+idweb:"https://www.boamp.fr"),
-    hay: norm([objet,pick(r,["nomacheteur","acheteur"]),descripteur,pick(r,["type_avis"]),extra.substring(0,4000)].join(" | ")),
+    hay: norm([objet,pick(r,["nomacheteur","acheteur"]),descripteur,pick(r,["type_avis"]),
+      extra.replace(/\\u00[0-9a-f]{2}/gi," ").replace(/&[a-z#0-9]+;/gi," ").substring(0,9000)].join(" | ")),
   };
+}
+
+/* Codes département : BOAMP supprime le zéro initial (Aisne = "2") */
+const deptVariants = (depts) => {
+  const out=[]; depts.forEach((d)=>{ out.push(d); const nz=String(Number(d)); if(nz!==d) out.push(nz); }); return out;
+};
+const orEq = (field, vals) => "("+vals.map((v)=>field+' = "'+v+'"').join(" or ")+")";
+
+/* Mots-clés envoyés au serveur (recherche plein texte) : rattrape les avis
+   que le balayage par pages n'aurait pas atteints */
+const AO_SERVER_TERMS = ["services bancaires","prestations bancaires","marché bancaire","tenue de compte","monétique",
+  "terminaux de paiement","encaissement","paiement en ligne","solution de paiement","moyens de paiement","cash management",
+  "trésorerie","titres restaurant","chèques vacances","chèques cadeaux","CESU","régie de recettes","mandataire financier",
+  "affacturage","ligne de trésorerie","emprunt","facturation électronique"];
+
+async function pagedQuery(base, where, maxRows, label, log, prog, orderBy){
+  const rows=[]; let total=null, via="";
+  for(let off=0; off<maxRows && off<10000; off+=100){
+    prog(label+" · "+(off+100>maxRows?maxRows:off+100)+(total!==null?" / "+total:""));
+    const qs=new URLSearchParams({ order_by:orderBy||"dateparution desc,idweb", limit:"100", offset:String(off) });
+    if(where) qs.set("where",where);
+    const got=await fetchJSON(base+"?"+qs.toString(), log);
+    if(!got) return rows.length?{ rows, total, via }:null;
+    if(got.bad) return { bad:true };
+    const d=got.data; via=got.via;
+    if(total===null && typeof d.total_count==="number"){ total=d.total_count; log("  "+total+" avis correspondent"); }
+    const rs=d.results||d.records||[];
+    if(!Array.isArray(rs)||!rs.length) break;
+    rows.push.apply(rows,rs);
+    if(rs.length<100 || (total!==null && off+100>=total)) break;
+  }
+  if(total!==null && total>rows.length) log("  ⚠ plafond atteint : "+rows.length+" lus sur "+total+" (augmentez le plafond)");
+  return { rows, total, via };
 }
 
 async function scanBOAMP(depts, days, pages, log, prog){
   const since=new Date(); since.setDate(since.getDate()-days);
-  const iso=since.toISOString().split("T")[0];
-  const dl=depts.map(function(d){ return '"'+d+'"'; }).join(",");
-  const plans=[
-    { n:"Départements + date", w:"code_departement in ("+dl+") and dateparution >= date'"+iso+"'" },
-    { n:"Date seule", w:"dateparution >= date'"+iso+"'" },
-    { n:"Derniers avis", w:null },
-  ];
-  for(let p=0;p<plans.length;p++){
-    log("── BOAMP · "+plans[p].n);
-    const rows=[]; let via="";
-    for(let pg=0;pg<pages;pg++){
-      prog("BOAMP — "+plans[p].n+" · page "+(pg+1));
-      const qs=new URLSearchParams({ order_by:"dateparution desc", limit:"100", offset:String(pg*100) });
-      if(plans[p].w) qs.set("where",plans[p].w);
-      const got=await fetchJSON(ENDPOINTS.boamp+"?"+qs.toString(), log);
-      if(!got) break;
-      const rs=got.data.results||got.data.records||[];
-      if(!Array.isArray(rs)||rs.length===0) break;
-      via=got.via; rows.push.apply(rows,rs);
-      log("  page "+(pg+1)+" → "+rs.length);
-      if(rs.length<100) break;
-    }
-    if(rows.length){ log("→ "+rows.length+" avis via "+via); return { rows, plan:plans[p].n, via }; }
-    log("→ vide, plan suivant");
+  const iso=isoDay(since);
+  const deptW = orEq("code_departement", deptVariants(depts));
+  const dateW = "dateparution >= date'"+iso+"'";
+  const kwW = "("+AO_SERVER_TERMS.map((t)=>'search("'+t+'")').join(" or ")+")";
+  const byId = {}; const vias=[]; let any=false;
+  const keep = (rs) => rs.forEach((r)=>{ const f=r&&r.fields?r.fields:r; const k=(f&&(f.idweb||f.id))||JSON.stringify(f).slice(0,80); byId[k]=r; });
+
+  for(const base of [ENDPOINTS.boamp, ENDPOINTS.boampAlt]){
+    log("── BOAMP · "+(base===ENDPOINTS.boamp?"API open data DILA":"boamp.fr (secours)"));
+    /* 1. Balayage complet du territoire sur la période */
+    log("1/2 Balayage complet "+depts.join(",")+" depuis le "+iso);
+    const a = await pagedQuery(base, deptW+" and "+dateW, pages*100, "BOAMP · balayage", log, prog);
+    if(a && !a.bad){ keep(a.rows); any=true; vias.push(a.via); log("→ "+a.rows.length+" avis lus"); }
+    else if(a && a.bad) log("→ filtre refusé par l'API");
+    /* 2. Recherche plein texte sur les mots-clés bancaires */
+    log("2/2 Recherche par mots-clés");
+    const b = await pagedQuery(base, deptW+" and "+dateW+" and "+kwW, 1000, "BOAMP · mots-clés", log, prog);
+    if(b && !b.bad){ keep(b.rows); any=true; vias.push(b.via); log("→ "+b.rows.length+" avis par mots-clés"); }
+    else if(b && b.bad) log("→ recherche plein texte refusée, balayage seul");
+    if(any) break;
   }
-  return null;
+  const rows=Object.values(byId);
+  if(!any){ log("BOAMP — aucune réponse exploitable"); return null; }
+  log("→ "+rows.length+" avis uniques après fusion");
+  return { rows, plan:"Balayage + mots-clés", via:Array.from(new Set(vias)).join("/") };
 }
 
 /* ─── BODACC ──────────────────────────────────────────────────── */
@@ -317,32 +438,20 @@ function normalizeSignal(r0){
 
 async function scanBODACC(depts, days, pages, log, prog){
   const since=new Date(); since.setDate(since.getDate()-days);
-  const iso=since.toISOString().split("T")[0];
-  const dl=depts.map(function(d){ return '"'+d+'"'; }).join(",");
-  const plans=[
-    { n:"Départements + date", w:"numerodepartement in ("+dl+") and dateparution >= date'"+iso+"'" },
-    { n:"Date seule", w:"dateparution >= date'"+iso+"'" },
-    { n:"Dernières annonces", w:null },
-  ];
-  for(let p=0;p<plans.length;p++){
-    log("── BODACC · "+plans[p].n);
-    const rows=[]; let via="";
-    for(let pg=0;pg<pages;pg++){
-      prog("BODACC — "+plans[p].n+" · page "+(pg+1));
-      const qs=new URLSearchParams({ order_by:"dateparution desc", limit:"100", offset:String(pg*100) });
-      if(plans[p].w) qs.set("where",plans[p].w);
-      const got=await fetchJSON(ENDPOINTS.bodacc+"?"+qs.toString(), log);
-      if(!got) break;
-      const rs=got.data.results||got.data.records||[];
-      if(!Array.isArray(rs)||rs.length===0) break;
-      via=got.via; rows.push.apply(rows,rs);
-      log("  page "+(pg+1)+" → "+rs.length);
-      if(rs.length<100) break;
-    }
-    if(rows.length){ log("→ "+rows.length+" annonces via "+via); return { rows, plan:plans[p].n, via }; }
-    log("→ vide, plan suivant");
+  const iso=isoDay(since);
+  const deptW = orEq("numerodepartement", deptVariants(depts));
+  const dateW = "dateparution >= date'"+iso+"'";
+  /* Les dépôts de comptes et radiations noient les vrais signaux : exclus côté serveur */
+  const famW = 'familleavis != "dpc" and familleavis != "radiation"';
+  log("── BODACC · hors dépôts de comptes et radiations");
+  let r = await pagedQuery(ENDPOINTS.bodacc, deptW+" and "+dateW+" and "+famW, pages*100, "BODACC", log, prog, "dateparution desc,id");
+  if(!r || r.bad || !r.rows.length){
+    log("── BODACC · sans filtre de famille");
+    r = await pagedQuery(ENDPOINTS.bodacc, deptW+" and "+dateW, pages*100, "BODACC", log, prog, "dateparution desc,id");
   }
-  return null;
+  if(!r || r.bad || !r.rows.length){ log("BODACC — aucune réponse exploitable"); return null; }
+  log("→ "+r.rows.length+" annonces lues");
+  return { rows:r.rows, plan:"Territoire + période", via:r.via };
 }
 
 /* ─── PRESSE (nécessite la clé API) ───────────────────────────── */
@@ -353,7 +462,7 @@ async function scanPresse(apiKey, depts, log, prog){
   const zone=depts.map(function(d){ return DEPTS[d]; }).join(", ");
   try{
     const data = await callClaude(apiKey,{
-      model:"claude-sonnet-4-20250514", max_tokens:5000,
+      model:MODEL, max_tokens:5000,
       tools:[{ type:"web_search_20250305", name:"web_search" }],
       system:"Tu es analyste en intelligence commerciale. Tu identifies des signaux d'affaires récents dans la presse économique régionale et nationale. Tu réponds UNIQUEMENT en JSON valide, sans markdown ni backtick.",
       messages:[{ role:"user", content:
@@ -438,16 +547,20 @@ const inputStyle={ width:"100%", padding:"8px 9px", border:"1px solid "+T.line,
   borderRadius:6, fontSize:16, background:"#fff", color:T.ink };
 
 /* ─── CARTE ───────────────────────────────────────────────────── */
-function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd, onUpdate, onRemove, hasKey }){
+function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd, onUpdate, onRemove, hasKey, links, onBrief, briefState }){
   const isOpen = open===item.id;
   const dl = daysLeft(item.dateLimite);
   const sc = mode==="pipe" ? STATUS[item.status] : null;
   const catalog = item.kind==="sig" ? SIG_CATS : AO_CATS;
-  const tierColor = !item.eval ? T.cool
+  const afs = item.kind==="affaire" ? (AF_STATUT[item.statut]||AF_STATUT["À qualifier"]) : null;
+  const tierColor = afs ? afs.color : !item.eval ? T.cool
     : item.eval.tier==="Élevée" ? T.ok : item.eval.tier==="Moyenne" ? T.warm : T.mute;
   const kc = item.kind==="ao" ? { l:"Appel d'offres", c:T.brand, b:T.brandLt }
     : item.kind==="sig" ? { l:"BODACC", c:T.violet, b:T.violetLt }
+    : item.kind==="affaire" ? { l:"Signal d'affaires", c:T.ok, b:T.okLt }
     : { l:"Presse", c:T.cool, b:T.coolLt };
+  const [copied,setCopied]=useState("");
+  const copy=(txt,k)=>{ try{ navigator.clipboard.writeText(txt).then(()=>{ setCopied(k); setTimeout(()=>setCopied(""),1800); },()=>setCopied("err")); }catch(_){ setCopied("err"); } };
 
   return (
     <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, marginBottom:8,
@@ -458,6 +571,10 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
             <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:7 }}>
               <Chip bg={kc.b} color={kc.c}>{kc.l}</Chip>
               {item.eval && <Chip bg={tierColor+"1A"} color={tierColor}>{item.eval.score}/100</Chip>}
+              {afs && <Chip bg={afs.bg} color={afs.color}>{item.statut} · {item.score}/12</Chip>}
+              {item.kind==="affaire" && item.type && <Chip bg={T.bg} color={T.body}>{item.type}</Chip>}
+              {item.resultat && <Chip bg={T.bg} color={T.mute}>Attribution</Chip>}
+              {links && links.length>0 && <Chip bg={T.ink} color="#fff">🔗 Aussi : {links.join(", ")}</Chip>}
               {item.depts.map((d)=><Chip key={d} bg={T.ink} color="#fff">{d} {DEPTS[d]||""}</Chip>)}
               {item.eval && item.eval.categories.slice(0,2).map((c)=>(
                 <Chip key={c} bg={catalog[c].color+"18"} color={catalog[c].color}>{catalog[c].label}</Chip>
@@ -471,7 +588,8 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
               {item.objet}
             </div>
             <div style={{ fontSize:12, color:T.mute, marginTop:4 }}>
-              {item.kind==="ao" ? item.acheteur : (item.signal||item.ville||item.societe)}
+              {mode==="pipe" && item.nextAction && <span style={{ color:T.warm, fontWeight:600 }}>➜ {item.nextAction}{item.relance?" · "+fmtDate(item.relance):""} — </span>}
+              {item.kind==="ao" ? item.acheteur : item.kind==="affaire" ? (item.lieu||"")+(item.fait?" — "+item.fait:"") : (item.signal||item.ville||item.societe)}
             </div>
           </div>
           <div style={{ textAlign:"right", minWidth:88, flexShrink:0, fontSize:12 }}>
@@ -486,9 +604,24 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
       {isOpen && (
         <div style={{ borderTop:"1px solid "+T.line, background:"#FAFBFD", padding:"13px 14px" }}>
           <div style={{ display:"flex", flexWrap:"wrap", gap:7, marginBottom:13 }}>
-            <Btn onClick={()=>onAnalyze(item)} disabled={!!ai||aiBusy||!hasKey} kind={ai?"ok":"solid"}>
-              {aiBusy?"Analyse…":ai?"Analysé":hasKey?"Analyser par IA":"Clé API requise"}
-            </Btn>
+            {hasKey || ai ? (
+              <Btn onClick={()=>onAnalyze(item)} disabled={!!ai||aiBusy} kind={ai?"ok":"solid"}>
+                {aiBusy?"Analyse…":ai?"Analysé":"Analyser par IA"}
+              </Btn>
+            ) : (
+              <Btn onClick={()=>copy(analysePromptText(item),"pa")} kind={copied==="pa"?"ok":"solid"}>
+                {copied==="pa"?"Prompt copié":"Copier le prompt d'analyse"}
+              </Btn>
+            )}
+            {item.kind!=="ao" && onBrief && (briefState==="ok" || hasKey ? (
+              <Btn onClick={()=>onBrief(item)} disabled={briefState==="busy"} kind={briefState==="ok"?"ok":"plain"}>
+                {briefState==="busy"?"Briefing en cours…":briefState==="ok"?"Voir le briefing":"Briefing pré-RDV"}
+              </Btn>
+            ) : (
+              <Btn onClick={()=>copy(briefPromptText(item),"pb")} kind={copied==="pb"?"ok":"plain"}>
+                {copied==="pb"?"Prompt copié":"Copier le prompt briefing"}
+              </Btn>
+            ))}
             {mode!=="pipe" && (
               <Btn onClick={()=>onAdd(item)} disabled={inPipe} kind={inPipe?"ok":"plain"}>
                 {inPipe?"Dans le pipeline":"+ Pipeline"}
@@ -499,7 +632,7 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
                 style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"9px 15px",
                           background:"#fff", color:T.ink, border:"1px solid "+T.line,
                           borderRadius:7, fontSize:13, fontWeight:600, textDecoration:"none" }}>
-                {item.kind==="presse"?"Lire l'article ↗":"Voir la source ↗"}
+                {item.kind==="presse"||item.kind==="affaire"?"Lire l'article ↗":"Voir la source ↗"}
               </a>
             )}
           </div>
@@ -510,6 +643,38 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
               <div style={{ fontSize:10, color:T.mute, fontWeight:700, textTransform:"uppercase",
                              letterSpacing:0.5, marginBottom:5 }}>Contenu de l'annonce</div>
               {item.details}
+            </div>
+          )}
+
+          {(copied==="pa"||copied==="pb") && (
+            <div style={{ background:T.brandLt, color:T.brand, fontSize:12.5, fontWeight:600, borderRadius:7, padding:"8px 11px", marginBottom:13 }}>
+              Prompt copié : collez-le dans Claude, ChatGPT ou MAiA. Il ne contient que des informations publiques.
+            </div>
+          )}
+
+          {item.kind==="affaire" && (
+            <div style={{ marginBottom:13 }}>
+              {[{l:"Le fait",v:item.fait,c:T.cool},{l:"Angle",v:item.angle,c:T.ok},
+                {l:"Qui viser",v:item.cible,c:T.brand},{l:"Offre",v:item.offre,c:T.violet}].map((b,i)=> b.v ? (
+                <div key={i} style={{ background:b.c+"0F", borderLeft:"3px solid "+b.c,
+                                       borderRadius:"0 5px 5px 0", padding:"8px 11px", marginBottom:7 }}>
+                  <div style={{ fontSize:10, color:b.c, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5 }}>{b.l}</div>
+                  <div style={{ fontSize:13, color:T.body, marginTop:3 }}>{b.v}</div>
+                </div>) : null)}
+              {item.message && (
+                <div style={{ background:"#fff", border:"1px solid "+T.ok+"55", borderRadius:7, padding:"10px 12px" }}>
+                  <div style={{ fontSize:10, color:T.ok, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, marginBottom:5 }}>Message LinkedIn</div>
+                  <div style={{ fontSize:13, color:T.body, fontStyle:"italic", lineHeight:1.55 }}>{item.message}</div>
+                  <div style={{ marginTop:9 }}>
+                    <Btn kind={copied==="msg"?"ok":"plain"} onClick={()=>copy(item.message,"msg")}>
+                      {copied==="msg"?"Copié":copied==="err"?"Copie impossible":"Copier le message"}
+                    </Btn>
+                  </div>
+                </div>
+              )}
+              <div style={{ fontSize:11, color:T.mute, marginTop:7 }}>
+                Score {item.score}/12 — taille {item.taille} · fraîcheur {item.fraicheur} · flux {item.flux} · accès {item.acces}{item.semaine?" · "+item.semaine:""}
+              </div>
             </div>
           )}
 
@@ -552,7 +717,8 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
             <div style={{ background:"#fff", border:"1px solid "+T.line, borderRadius:8, padding:13, marginBottom:13 }}>
               <div style={{ fontWeight:700, color:T.ink, fontSize:13, marginBottom:10 }}>Analyse IA</div>
               {[{l:"Lecture du besoin",v:ai.besoin,c:T.brand},{l:"Angle d'attaque",v:ai.angle,c:T.ok},
-                {l:"Interlocuteur à viser",v:ai.interlocuteur,c:T.cool},{l:"Point de vigilance",v:ai.vigilance,c:T.hot}]
+                {l:"Interlocuteur à viser",v:ai.interlocuteur,c:T.cool},{l:"Point de vigilance",v:ai.vigilance,c:T.hot},
+                {l:"Message LinkedIn",v:ai.message,c:T.ok}]
                 .map((b,i)=> b.v ? (
                 <div key={i} style={{ background:b.c+"0F", borderLeft:"3px solid "+b.c,
                                        borderRadius:"0 5px 5px 0", padding:"8px 11px", marginBottom:7 }}>
@@ -560,6 +726,11 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
                   <div style={{ fontSize:13, color:T.body, marginTop:3 }}>{b.v}</div>
                 </div>
               ) : null)}
+              {ai.message && (
+                <Btn kind={copied==="ai"?"ok":"plain"} onClick={()=>copy(ai.message,"ai")}>
+                  {copied==="ai"?"Copié":copied==="err"?"Copie impossible":"Copier le message"}
+                </Btn>
+              )}
             </div>
           )}
           {ai && ai.error && (
@@ -567,12 +738,15 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
                            borderRadius:6, marginBottom:13 }}>Analyse indisponible : {ai.error}</div>
           )}
 
+          {mode==="pipe" && item.kind!=="ao" && <SequencePanel item={item} onUpdate={onUpdate} copy={copy} copied={copied} />}
+
           {mode==="pipe" && (
             <div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9, marginBottom:9 }}>
                 <Field label="Statut">
                   <select value={item.status} onChange={(e)=>onUpdate(item.id,{status:e.target.value})} style={inputStyle}>
-                    {Object.keys(STATUS).map((k)=><option key={k} value={k}>{STATUS[k].label}</option>)}
+                    {statusKeysFor(item.kind).concat(statusKeysFor(item.kind).indexOf(item.status)===-1?[item.status]:[])
+                      .map((k)=><option key={k} value={k}>{STATUS[k]?STATUS[k].label:k}</option>)}
                   </select>
                 </Field>
                 <Field label="Relance">
@@ -582,7 +756,7 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
               </div>
               <Field label="Notes">
                 <textarea value={item.notes||""} onChange={(e)=>onUpdate(item.id,{notes:e.target.value})}
-                  placeholder="Contact identifié, stratégie, concurrence en place…"
+                  placeholder={item.kind==="ao"?"Contact identifié, stratégie, concurrence en place…":"Profil LinkedIn, date d'envoi, réponse, prochaine étape…"}
                   style={Object.assign({},inputStyle,{ height:74, resize:"vertical", padding:8, fontSize:14 })} />
               </Field>
               <div style={{ marginTop:9 }}>
@@ -606,9 +780,9 @@ function CommandBar({ depts, setDepts, days, setDays, pages, setPages, run, load
             {[7,14,30,60,90].map((d)=><option key={d} value={d}>{d} derniers jours</option>)}
           </select>
         </Field>
-        <Field label="Profondeur">
+        <Field label="Plafond">
           <select value={pages} onChange={(e)=>setPages(Number(e.target.value))} style={inputStyle}>
-            {[1,2,3,5].map((n)=><option key={n} value={n}>{n*100} par source</option>)}
+            {[5,10,20,50].map((n)=><option key={n} value={n}>Jusqu'à {n*100} par source</option>)}
           </select>
         </Field>
         <Btn onClick={run} disabled={loading} style={{ padding:"11px 22px", fontSize:14, justifyContent:"center" }}>
@@ -646,12 +820,12 @@ function CommandBar({ depts, setDepts, days, setDays, pages, setPages, run, load
 /* ─── FLUX ────────────────────────────────────────────────────── */
 function TabFlux({ items, kinds, empty, cats, setCats, catalog, catKeys, minScore, setMinScore,
                    onlyOpen, setOnlyOpen, sortBy, setSortBy, open, setOpen, aiCache, aiBusy,
-                   pipeline, onAnalyze, onAdd, error, hasKey }){
+                   pipeline, onAnalyze, onAdd, error, hasKey, linksFor, briefFor }){
   const [showCfg,setShowCfg]=useState(false);
   const shown=useMemo(()=>{
     let l=items.filter((a)=>kinds.indexOf(a.kind)!==-1);
     if(catalog) l=l.filter((a)=>!a.eval||a.eval.score>=minScore);
-    if(onlyOpen) l=l.filter((a)=>{ const d=daysLeft(a.dateLimite); return d===null||d>=0; });
+    if(onlyOpen) l=l.filter((a)=>{ if(a.resultat) return false; const d=daysLeft(a.dateLimite); return d===null||d>=0; });
     const s=l.slice();
     if(sortBy==="score") s.sort((a,b)=>((b.eval&&b.eval.score)||0)-((a.eval&&a.eval.score)||0));
     else if(sortBy==="deadline") s.sort((a,b)=>{ const x=daysLeft(a.dateLimite),y=daysLeft(b.dateLimite);
@@ -724,28 +898,396 @@ function TabFlux({ items, kinds, empty, cats, setCats, catalog, catKeys, minScor
       ) : shown.map((a)=>(
         <Card key={a.id} item={a} mode="flux" open={open} setOpen={setOpen}
           ai={aiCache[a.id]} aiBusy={!!aiBusy[a.id]} inPipe={pipeline.some((x)=>x.id===a.id)}
-          onAnalyze={onAnalyze} onAdd={onAdd} onUpdate={()=>{}} onRemove={()=>{}} hasKey={hasKey} />
+          onAnalyze={onAnalyze} onAdd={onAdd} onUpdate={()=>{}} onRemove={()=>{}} hasKey={hasKey}
+          links={linksFor?linksFor(a):null} {...(briefFor?briefFor(a):{})} />
       ))}
     </div>
   );
 }
 
+/* ─── SIGNAUX D'AFFAIRES ──────────────────────────────────────── */
+function TabAffaires({ affaires, onImport, open, setOpen, aiCache, aiBusy, pipeline, onAnalyze, onAdd, hasKey, linksFor, importMsg, briefFor }){
+  const semaines = useMemo(()=>Array.from(new Set(affaires.map((a)=>a.semaine).filter(Boolean))).sort().reverse(),[affaires]);
+  const [sem,setSem]=useState("");
+  const [statut,setStatut]=useState("Go");
+  const fileRef=useRef(null);
+  const semActive = sem || semaines[0] || "";
+  const ofWeek = affaires.filter((a)=>!semActive || a.semaine===semActive);
+  const count = (st)=>ofWeek.filter((a)=>a.statut===st).length;
+  const shown = ofWeek.filter((a)=>!statut || a.statut===statut)
+    .slice().sort((a,b)=>b.score-a.score);
+
+  return (
+    <div>
+      <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:15, marginBottom:13 }}>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:11, flexWrap:"wrap" }}>
+          <div style={{ flex:1, minWidth:170 }}>
+            <Field label="Semaine">
+              <select value={semActive} onChange={(e)=>setSem(e.target.value)} style={inputStyle}>
+                {semaines.length===0 && <option value="">—</option>}
+                {semaines.map((w)=><option key={w} value={w}>{w}</option>)}
+              </select>
+            </Field>
+          </div>
+          <Btn kind="plain" onClick={()=>fileRef.current && fileRef.current.click()}>Importer la semaine</Btn>
+          <input ref={fileRef} type="file" accept=".json,application/json" style={{ display:"none" }}
+            onChange={(e)=>{ const f=e.target.files&&e.target.files[0]; if(f) onImport(f); e.target.value=""; }} />
+        </div>
+        <div style={{ marginTop:12, display:"flex", gap:7, flexWrap:"wrap", alignItems:"center" }}>
+          <span style={{ fontSize:10, color:T.mute, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6 }}>Statut</span>
+          {["Go","À qualifier","Hors cible",""].map((st)=>{
+            const on=statut===st, c=st?AF_STATUT[st].color:T.ink;
+            return <Chip key={st||"tous"} active={on} bg={on?c:"#fff"} color={on?"#fff":T.mute}
+              onClick={()=>setStatut(st)}>{st||"Tous"} · {st?count(st):ofWeek.length}</Chip>;
+          })}
+        </div>
+        {importMsg && (
+          <div style={{ marginTop:11, fontSize:12, fontWeight:600,
+                         color:importMsg.ok?T.ok:T.hot }}>{importMsg.text}</div>
+        )}
+        <div style={{ marginTop:10, fontSize:11.5, color:T.mute, lineHeight:1.55 }}>
+          Chaque mardi, la veille vous envoie le fichier de la semaine : importez-le ici. Le message LinkedIn s'envoie
+          vous-même, après avoir vérifié la bonne personne sur son profil.
+        </div>
+      </div>
+
+      {shown.length===0 ? (
+        <div style={{ textAlign:"center", padding:"46px 18px", background:T.card,
+                       border:"1px solid "+T.line, borderRadius:9 }}>
+          <div style={{ fontSize:40, marginBottom:10 }}>◎</div>
+          <div style={{ fontWeight:700, color:T.ink, fontSize:16 }}>Aucun signal pour ce filtre</div>
+        </div>
+      ) : shown.map((a)=>(
+        <Card key={a.id} item={a} mode="flux" open={open} setOpen={setOpen}
+          ai={aiCache[a.id]} aiBusy={!!aiBusy[a.id]} inPipe={pipeline.some((x)=>x.id===a.id)}
+          onAnalyze={onAnalyze} onAdd={onAdd} onUpdate={()=>{}} onRemove={()=>{}} hasKey={hasKey}
+          links={linksFor(a)} {...(briefFor?briefFor(a):{})} />
+      ))}
+    </div>
+  );
+}
+
+/* ─── SÉQUENCE LINKEDIN ───────────────────────────────────────── */
+const HOOKS = {
+  "croissance externe":"L'intégration d'une nouvelle société pose souvent la question de la centralisation des comptes et de la visibilité sur la trésorerie.",
+  "investissement":"Un projet de cette ampleur change souvent les volumes à encaisser, à payer et à financer.",
+  "nomination":"Une prise de poste est souvent le bon moment pour faire le point sur l'organisation des flux.",
+  "international":"Un nouveau pays, c'est souvent de nouveaux besoins en paiements internationaux et en change.",
+  "réseau franchise":"Un réseau qui grandit doit pouvoir encaisser et prélever ses franchisés simplement.",
+  "subvention":"Les financements publics arrivent souvent après les dépenses, ce qui pèse sur la trésorerie.",
+  "reprise":"Une reprise est souvent l'occasion de remettre à plat l'organisation bancaire.",
+  "direction":"Une nouvelle direction est souvent le bon moment pour revoir l'organisation des flux.",
+  "croissance":"Une phase de croissance change souvent les volumes à encaisser et à financer.",
+};
+function followUps(item){
+  const t = norm(item.type||item.categorie||(item.eval&&item.eval.categories&&item.eval.categories[0])||"");
+  const key = Object.keys(HOOKS).find((k)=>t.indexOf(norm(k))!==-1);
+  const hook = key ? HOOKS[key] : "Votre actualité m'a fait penser que le sujet des flux et de la trésorerie pouvait être d'actualité chez vous.";
+  return {
+    proposition: "Merci d'avoir accepté ma demande. "+hook+" Je serais ravi d'échanger 20 minutes avec vous pour comprendre vos enjeux, sans engagement. Seriez-vous disponible dans les prochaines semaines ? Je peux me déplacer ou vous proposer une visio.",
+    relance: "Je me permets de revenir vers vous suite à mon dernier message. Si le moment n'est pas idéal, aucun souci : je reste disponible quand le sujet se présentera. Belle journée !",
+  };
+}
+
+function SequencePanel({ item, onUpdate, copy, copied }){
+  const fu = followUps(item);
+  const st = item.status;
+  const act = (u) => onUpdate(item.id, u);
+  const steps = [
+    { l:"Demande envoyée", d:item.sentAt },
+    { l:"Connexion acceptée", d:item.acceptedAt },
+    { l:"Proposition envoyée", d:item.msg2At },
+    { l:"Relances", d:item.relances?String(item.relances):null, raw:true },
+  ];
+  let msg=null, msgKey="";
+  if(st==="a_approcher" && item.message){ msg=item.message; msgKey="inv"; }
+  if(st==="connecte" && !item.msg2At){ msg=fu.proposition; msgKey="prop"; }
+  if(st==="connecte" && item.msg2At){ msg=fu.relance; msgKey="rel"; }
+  const msgLabel = msgKey==="inv"?"Demande de connexion":msgKey==="prop"?"Message de proposition (après acceptation)":"Message de relance";
+
+  return (
+    <div style={{ background:"#fff", border:"1px solid "+T.cool+"55", borderRadius:8, padding:13, marginBottom:13 }}>
+      <div style={{ fontWeight:700, color:T.ink, fontSize:13, marginBottom:9 }}>Séquence LinkedIn</div>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:11 }}>
+        {steps.map((x,i)=>(
+          <Chip key={i} bg={x.d?T.coolLt:T.bg} color={x.d?T.cool:T.mute}>
+            {x.d ? "✓ "+x.l+" · "+(x.raw?x.d:fmtDate(x.d)) : x.l}
+          </Chip>
+        ))}
+      </div>
+      {item.nextAction && (
+        <div style={{ fontSize:12.5, color:T.warm, fontWeight:600, marginBottom:10 }}>
+          ➜ {item.nextAction}{item.relance?" — le "+fmtDate(item.relance):""}
+        </div>
+      )}
+      {msg && (
+        <div style={{ background:T.bg, borderRadius:7, padding:"9px 11px", marginBottom:10 }}>
+          <div style={{ fontSize:10, color:T.cool, fontWeight:700, textTransform:"uppercase", letterSpacing:0.5, marginBottom:4 }}>{msgLabel}</div>
+          <div style={{ fontSize:13, color:T.body, fontStyle:"italic", lineHeight:1.55 }}>{msg}</div>
+          <div style={{ marginTop:8 }}>
+            <Btn kind={copied===msgKey?"ok":"plain"} onClick={()=>copy(msg,msgKey)}>{copied===msgKey?"Copié":"Copier"}</Btn>
+          </div>
+        </div>
+      )}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:7 }}>
+        {st==="a_approcher" && <Btn onClick={()=>act({ status:"contacte", sentAt:todayISO(), relance:addDays(7), nextAction:"Vérifier si la demande est acceptée" })}>J'ai envoyé la demande</Btn>}
+        {st==="contacte" && <Btn onClick={()=>act({ status:"connecte", acceptedAt:todayISO(), relance:todayISO(), nextAction:"Envoyer le message de proposition" })}>Connexion acceptée</Btn>}
+        {st==="contacte" && <Btn kind="plain" onClick={()=>act({ relances:(item.relances||0)+1, relance:addDays(7), nextAction:"Tenter une autre voie : email, téléphone, recommandation" })}>Pas de réponse à J+7</Btn>}
+        {st==="connecte" && !item.msg2At && <Btn onClick={()=>act({ msg2At:todayISO(), relance:addDays(3), nextAction:"Relancer si pas de réponse" })}>Proposition envoyée</Btn>}
+        {st==="connecte" && item.msg2At && <Btn kind="plain" onClick={()=>act({ relances:(item.relances||0)+1, relance:addDays(7), nextAction:(item.relances||0)>=1?"Dernière relance faite : clore ou changer de canal":"Relancer une dernière fois si pas de réponse" })}>Relance envoyée</Btn>}
+        {(st==="connecte"||st==="contacte") && <Btn kind="ok" onClick={()=>act({ status:"rdv", relance:null, nextAction:"Préparer le briefing pré-RDV" })}>RDV obtenu</Btn>}
+        {st==="rdv" && <Btn kind="ok" onClick={()=>act({ status:"opportunite", nextAction:"Construire la proposition" })}>Opportunité ouverte</Btn>}
+      </div>
+    </div>
+  );
+}
+
+/* ─── PROMPTS À COPIER (mode sans clé) ────────────────────────── */
+function signalContext(it){
+  return it.kind==="ao"
+    ? "APPEL D'OFFRES\nObjet : "+it.objet+"\nAcheteur : "+it.acheteur+
+      "\nDate limite : "+fmtDate(it.dateLimite)+"\nType : "+(it.typeAvis||"")+" "+(it.procedure||"")+
+      "\nDescripteurs : "+String(it.descripteur||"").substring(0,400)+(it.url?"\nAvis : "+it.url:"")
+    : it.kind==="affaire"
+    ? "SIGNAL D'AFFAIRES\nEntreprise : "+it.entreprise+" ("+(it.lieu||"")+")\nType : "+it.type+"\nFait : "+it.fait+
+      "\nAngle pressenti : "+(it.angle||"")+"\nOffre pressentie : "+(it.offre||"")+(it.url?"\nSource : "+it.url:"")
+    : it.kind==="sig"
+    ? "ANNONCE BODACC\nEntité : "+it.societe+"\nFamille : "+it.famille+
+      "\nVille : "+it.ville+"\nContenu : "+String(it.details||"").substring(0,700)
+    : "SIGNAL PRESSE\nEntreprise : "+it.societe+"\nSignal : "+it.signal+"\nSource : "+(it.source||"")+(it.url?" "+it.url:"");
+}
+function analysePromptText(it){
+  return "Tu es analyste en développement commercial pour une banque régionale des Hauts-de-France, spécialisé en moyens de paiement, monétique, flux domestiques et internationaux, trésorerie et avantages salariés.\n\n"+
+    "Analyse ce signal et réponds en 5 rubriques courtes :\n"+
+    "1. Le besoin réel derrière ce signal (2 phrases concrètes)\n"+
+    "2. L'angle d'attaque, formulé comme une action\n"+
+    "3. L'interlocuteur à viser (fonction précise)\n"+
+    "4. Le principal point de vigilance\n"+
+    "5. Une demande de connexion LinkedIn de moins de 300 caractères : vouvoiement, ton humain, sans jargon ni promesse\n\n"+
+    signalContext(it);
+}
+function briefPromptText(it){
+  return "Prépare un briefing pré-rendez-vous sur l'entreprise ci-dessous, pour un responsable Ingénierie Flux, Paiements & International d'une banque régionale des Hauts-de-France. "+
+    "Fais une recherche web ciblée par bloc, sources publiques uniquement (BODACC, Pappers, Societe.com, presse régionale, site de l'entreprise). "+
+    "N'invente jamais un chiffre, un nom ou une banque : écris « Non trouvé » quand l'information manque.\n\n"+
+    "Entreprise : "+(it.entreprise||it.societe||it.acheteur)+(it.lieu?" ("+it.lieu+")":"")+(it.ville?" — "+it.ville:"")+
+    "\nSignal déclencheur : "+(it.fait||it.signal||it.objet||"")+"\n\n"+
+    "Structure : résumé en 3 phrases, puis les 7 blocs ("+BLOCS.map((b,i)=>(i+1)+". "+b).join(" ; ")+"), "+
+    "chacun avec un niveau de confiance. Termine par « Pistes pour le rendez-vous » : 3 questions ouvertes à poser, "+
+    "2 hypothèses d'opportunité, le principal risque concurrentiel, les documents à apporter. Liste tes sources avec leurs liens.";
+}
+
+/* ─── BRIEFING 7 BLOCS ────────────────────────────────────────── */
+const BLOCS = ["Structure légale et gouvernance","Profil économique et financier","Flux et infrastructure de paiement",
+  "Trésorerie et cash management","International et change","ERP, TMS et intégration","Écosystème PSP et partenaires"];
+
+async function runBriefing(apiKey, it){
+  const ctx = "Entreprise : "+(it.entreprise||it.societe||it.acheteur)+
+    (it.lieu?"\nLocalisation : "+it.lieu:"")+(it.ville?"\nVille : "+it.ville:"")+
+    "\nSignal déclencheur : "+(it.fait||it.signal||it.objet||"")+
+    (it.angle?"\nAngle pressenti : "+it.angle:"");
+  const data = await callClaude(apiKey,{
+    model:MODEL, max_tokens:7000,
+    tools:[{ type:"web_search_20250305", name:"web_search", max_uses:8 }],
+    system:"Tu prépares des dossiers pré-rendez-vous pour un responsable Ingénierie Flux, Paiements & International d'une banque régionale des Hauts-de-France. Sources publiques uniquement (BODACC, Pappers, Societe.com, presse régionale, site de l'entreprise, communiqués). N'invente jamais un chiffre, un nom ou une banque : écris « Non trouvé » quand l'information manque, et signale ce qui est une hypothèse. Paraphrase, ne recopie pas les articles. Tu réponds UNIQUEMENT en JSON valide, sans markdown ni backtick.",
+    messages:[{ role:"user", content:
+      "Prépare un briefing pré-RDV en 7 blocs sur cette entreprise. Fais une recherche ciblée par bloc.\n\n"+ctx+"\n\n"+
+      "Blocs, dans cet ordre : "+BLOCS.map((b,i)=>(i+1)+". "+b).join(" ; ")+".\n\n"+
+      "Retourne exactement ce JSON :\n"+
+      '{"resume":"3 phrases : qui ils sont, pourquoi maintenant, la meilleure porte d\'entrée",'+
+      '"blocs":[{"titre":"nom du bloc","points":["fait court et sourcé, ou Non trouvé"],"confiance":"élevée|moyenne|faible"}],'+
+      '"questions":["3 questions ouvertes prêtes à poser à l\'oral, qui font parler des irritants"],'+
+      '"hypotheses":["2 hypothèses d\'opportunité, chiffrées seulement si une base publique le permet"],'+
+      '"risque":"le principal risque concurrentiel (banque historique, PSP en place)",'+
+      '"documents":["documents à apporter au RDV"],'+
+      '"sources":[{"titre":"nom de la source","url":"lien"}]}' }],
+  });
+  const txt=(data.content||[]).filter((b)=>b.type==="text").map((b)=>b.text).join("\n");
+  const parsed=extractJSON(txt);
+  if(!parsed || !Array.isArray(parsed.blocs)) throw new Error("réponse illisible");
+  return Object.assign(parsed,{ entreprise:it.entreprise||it.societe||it.acheteur, at:todayISO() });
+}
+
+function briefText(b){
+  const L=["BRIEFING PRÉ-RDV — "+b.entreprise+" ("+fmtDate(b.at)+")","",b.resume||"",""];
+  (b.blocs||[]).forEach((x,i)=>{ L.push((i+1)+". "+x.titre+(x.confiance?" [confiance "+x.confiance+"]":"")); (x.points||[]).forEach((p)=>L.push("  - "+p)); L.push(""); });
+  L.push("PISTES POUR LE RENDEZ-VOUS");
+  L.push("Questions :"); (b.questions||[]).forEach((q)=>L.push("  - "+q));
+  L.push("Hypothèses d'opportunité :"); (b.hypotheses||[]).forEach((q)=>L.push("  - "+q));
+  if(b.risque) L.push("Risque concurrentiel : "+b.risque);
+  L.push("Documents à apporter :"); (b.documents||[]).forEach((q)=>L.push("  - "+q));
+  L.push(""); L.push("Sources :"); (b.sources||[]).forEach((x)=>L.push("  - "+(x.titre||"")+" "+(x.url||"")));
+  L.push(""); L.push("Sources publiques uniquement — à vérifier avant usage.");
+  return L.join("\n");
+}
+
+function BriefModal({ brief, onClose, onRedo, busy }){
+  const [copied,setCopied]=useState(false);
+  if(!brief) return null;
+  const sec=(t,c)=>(<div style={{ fontSize:10.5, color:c||T.brand, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6, margin:"16px 0 7px" }}>{t}</div>);
+  const confC=(c)=>c==="élevée"?T.ok:c==="moyenne"?T.warm:T.mute;
+  return (
+    <div className="brief-overlay" style={{ position:"fixed", inset:0, background:"rgba(15,23,42,.55)", zIndex:50,
+                   display:"flex", justifyContent:"center", alignItems:"flex-start", overflowY:"auto", padding:"24px 12px" }}
+      onClick={(e)=>{ if(e.target===e.currentTarget) onClose(); }}>
+      <div className="brief-print" style={{ background:"#fff", borderRadius:11, maxWidth:760, width:"100%", padding:"18px 18px 22px" }}>
+        <div style={{ display:"flex", justifyContent:"space-between", gap:10, alignItems:"flex-start" }}>
+          <div>
+            <div style={{ fontSize:10.5, color:T.mute, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6 }}>Briefing pré-RDV · {fmtDate(brief.at)}</div>
+            <div style={{ fontWeight:700, fontSize:19, color:T.ink, marginTop:3 }}>{brief.entreprise}</div>
+          </div>
+          <button className="no-print" onClick={onClose} aria-label="Fermer" style={{ background:"none", border:"none", fontSize:22, color:T.mute, cursor:"pointer" }}>×</button>
+        </div>
+        {brief.resume && <div style={{ background:T.brandLt, borderRadius:7, padding:"10px 12px", marginTop:12, fontSize:13.5, color:T.ink, lineHeight:1.55 }}>{brief.resume}</div>}
+        {(brief.blocs||[]).map((b,i)=>(
+          <div key={i}>
+            {sec((i+1)+". "+b.titre)}
+            {b.confiance && <span style={{ fontSize:11, color:confC(b.confiance), fontWeight:600 }}>Confiance {b.confiance}</span>}
+            <ul style={{ margin:"5px 0 0", paddingLeft:18, fontSize:13, color:T.body, lineHeight:1.55 }}>
+              {(b.points||[]).map((p,j)=><li key={j}>{p}</li>)}
+            </ul>
+          </div>
+        ))}
+        <div style={{ background:T.okLt, borderRadius:8, padding:"4px 13px 12px", marginTop:18 }}>
+          {sec("Pistes pour le rendez-vous",T.ok)}
+          <div style={{ fontSize:12, fontWeight:700, color:T.ink }}>3 questions à poser</div>
+          <ol style={{ margin:"4px 0 9px", paddingLeft:18, fontSize:13, color:T.body, lineHeight:1.55 }}>{(brief.questions||[]).map((q,i)=><li key={i}>{q}</li>)}</ol>
+          <div style={{ fontSize:12, fontWeight:700, color:T.ink }}>Hypothèses d'opportunité</div>
+          <ul style={{ margin:"4px 0 9px", paddingLeft:18, fontSize:13, color:T.body, lineHeight:1.55 }}>{(brief.hypotheses||[]).map((q,i)=><li key={i}>{q}</li>)}</ul>
+          {brief.risque && <div style={{ fontSize:13, color:T.body, marginBottom:9 }}><strong style={{ color:T.hot }}>Risque concurrentiel : </strong>{brief.risque}</div>}
+          <div style={{ fontSize:12, fontWeight:700, color:T.ink }}>Documents à apporter</div>
+          <ul style={{ margin:"4px 0 0", paddingLeft:18, fontSize:13, color:T.body, lineHeight:1.55 }}>{(brief.documents||[]).map((q,i)=><li key={i}>{q}</li>)}</ul>
+        </div>
+        {(brief.sources||[]).length>0 && (
+          <div>
+            {sec("Sources",T.mute)}
+            {(brief.sources||[]).map((x,i)=>(
+              <div key={i} style={{ fontSize:12, marginBottom:3 }}>
+                {/^https?:\/\//.test(x.url||"") ? <a href={x.url} target="_blank" rel="noopener noreferrer" style={{ color:T.brand }}>{x.titre||x.url}</a> : (x.titre||"")}
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ fontSize:11, color:T.mute, marginTop:12 }}>Sources publiques uniquement, générées par IA : à vérifier avant le rendez-vous.</div>
+        <div className="no-print" style={{ display:"flex", flexWrap:"wrap", gap:7, marginTop:14 }}>
+          <Btn kind={copied?"ok":"plain"} onClick={()=>{ try{ navigator.clipboard.writeText(briefText(brief)).then(()=>{ setCopied(true); setTimeout(()=>setCopied(false),1800); }); }catch(_){} }}>{copied?"Copié":"Copier le texte"}</Btn>
+          <Btn kind="plain" onClick={()=>window.print()}>Imprimer / PDF</Btn>
+          <Btn kind="plain" disabled={busy} onClick={onRedo}>{busy?"Mise à jour…":"Refaire le briefing"}</Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── CONVERSION ──────────────────────────────────────────────── */
+const FUNNEL = [
+  { k:"contacte", l:"Contactés", lvl:1 }, { k:"connecte", l:"Connectés", lvl:2 },
+  { k:"rdv", l:"RDV obtenus", lvl:3 }, { k:"opportunite", l:"Opportunités", lvl:4 }, { k:"gagne", l:"Gagnés", lvl:5 },
+];
+const LEVEL = { a_approcher:0, contacte:1, connecte:2, rdv:3, opportunite:4, gagne:5, perdu:0 };
+function reached(a){
+  let m = LEVEL[a.status]||0;
+  Object.keys(a.stageDates||{}).forEach((k)=>{ if((LEVEL[k]||0)>m) m=LEVEL[k]; });
+  if(a.sentAt && m<1) m=1; if(a.acceptedAt && m<2) m=2;
+  return m;
+}
+const pct = (a,b) => b ? Math.round(a*100/b)+" %" : "—";
+
+function TabConversion({ pipeline, onExport }){
+  const pros = pipeline.filter((a)=>a.kind!=="ao");
+  const aos = pipeline.filter((a)=>a.kind==="ao");
+  const lv = pros.map(reached);
+  const nAt = (l) => lv.filter((x)=>x>=l).length;
+  const steps = [{ l:"Pistes suivies", n:pros.length }].concat(FUNNEL.map((f)=>({ l:f.l, n:nAt(f.lvl) })));
+  const max = Math.max(1, pros.length);
+  const group = (keyFn) => {
+    const g={};
+    pros.forEach((a)=>{ const k=keyFn(a)||"Autre"; if(!g[k]) g[k]={ k, n:0, c:0, r:0, o:0 };
+      const r=reached(a); g[k].n++; if(r>=1) g[k].c++; if(r>=3) g[k].r++; if(r>=4) g[k].o++; });
+    return Object.values(g).sort((x,y)=>y.r-x.r||y.n-x.n);
+  };
+  const byType = group((a)=>a.type||(a.kind==="sig"?a.famille:a.categorie)||KIND_LABEL[a.kind]);
+  const bySource = group((a)=>KIND_LABEL[a.kind]);
+  const delays = pros.filter((a)=>a.sentAt && a.stageDates && a.stageDates.rdv)
+    .map((a)=>(new Date(a.stageDates.rdv)-new Date(a.sentAt))/86400000).filter((d)=>d>=0);
+  const avgDelay = delays.length ? Math.round(delays.reduce((x,y)=>x+y,0)/delays.length) : null;
+  const aoDep = aos.filter((a)=>["depose","gagne","perdu"].indexOf(a.status)!==-1).length;
+  const aoWin = aos.filter((a)=>a.status==="gagne").length;
+  const card = { background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:16, marginBottom:14 };
+  const th = { textAlign:"left", fontSize:11, color:T.mute, fontWeight:700, padding:"6px 8px", borderBottom:"1px solid "+T.line };
+  const td = { fontSize:12.5, color:T.body, padding:"7px 8px", borderBottom:"1px solid "+T.line, fontVariantNumeric:"tabular-nums" };
+  const Table = ({ rows, title }) => (
+    <div style={card}>
+      <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:9 }}>{title}</div>
+      {rows.length===0 ? <div style={{ fontSize:13, color:T.mute }}>Pas encore de données.</div> : (
+      <div className="scroll-x"><table style={{ width:"100%", borderCollapse:"collapse", minWidth:420 }}>
+        <thead><tr><th style={th}></th><th style={th}>Pistes</th><th style={th}>Contactées</th><th style={th}>RDV</th><th style={th}>RDV / contact</th><th style={th}>Opportunités</th></tr></thead>
+        <tbody>{rows.map((r)=>(<tr key={r.k}><td style={Object.assign({},td,{ fontWeight:600, color:T.ink })}>{r.k}</td><td style={td}>{r.n}</td><td style={td}>{r.c}</td><td style={td}>{r.r}</td><td style={Object.assign({},td,{ fontWeight:700, color:r.r?T.ok:T.mute })}>{pct(r.r,r.c)}</td><td style={td}>{r.o}</td></tr>))}</tbody>
+      </table></div>)}
+    </div>
+  );
+  return (
+    <div>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:9, flexWrap:"wrap", marginBottom:14 }}>
+        <div style={{ fontWeight:700, color:T.ink, fontSize:17 }}>Conversion de la prospection</div>
+        <Btn kind="plain" onClick={onExport} disabled={pipeline.length===0}>Export Pilotage</Btn>
+      </div>
+      <div style={card}>
+        <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:4 }}>Entonnoir des pistes (hors appels d'offres)</div>
+        <div style={{ fontSize:12, color:T.mute, marginBottom:12 }}>Une piste compte à chaque étape qu'elle a atteinte, même si elle a été close ensuite.</div>
+        {steps.map((s,i)=>(
+          <div key={i} style={{ display:"grid", gridTemplateColumns:"minmax(92px,120px) 1fr 76px", gap:9, alignItems:"center", marginBottom:7 }}>
+            <div style={{ fontSize:12.5, color:T.body, fontWeight:600 }}>{s.l}</div>
+            <div style={{ background:T.bg, borderRadius:5, height:22, overflow:"hidden" }}>
+              <div style={{ width:(s.n*100/max)+"%", minWidth:s.n?4:0, height:"100%", background:i===0?T.mute:i>=3?T.ok:T.cool, borderRadius:5 }} />
+            </div>
+            <div style={{ fontSize:12.5, color:T.ink, fontWeight:700, fontVariantNumeric:"tabular-nums", textAlign:"right" }}>
+              {s.n}{i>0 && <span style={{ color:T.mute, fontWeight:500 }}> · {pct(s.n,steps[i-1].n)}</span>}
+            </div>
+          </div>
+        ))}
+        <div style={{ display:"flex", gap:18, flexWrap:"wrap", marginTop:12, fontSize:12.5, color:T.body }}>
+          <span>RDV / pistes contactées : <strong style={{ color:T.ok }}>{pct(nAt(3),nAt(1))}</strong></span>
+          <span>Délai moyen demande → RDV : <strong>{avgDelay===null?"—":avgDelay+" j"}</strong></span>
+          <span>Appels d'offres déposés : <strong>{aoDep}</strong> · gagnés : <strong>{aoWin}</strong> ({pct(aoWin,aoDep)})</span>
+        </div>
+      </div>
+      <Table rows={byType} title="Par type de signal" />
+      <Table rows={bySource} title="Par source" />
+    </div>
+  );
+}
+
+/* ─── EXPORT VERS PILOTAGE BUSINESS DÉVELOPPEMENT ─────────────── */
+function exportPilotage(pipeline){
+  const head=["Date ajout","Entreprise","Département","Source","Type de signal","Statut","Score","Offre","Interlocuteur",
+    "Prochaine action","Date relance","Demande envoyée","Connexion acceptée","Date RDV","Notes","Lien"];
+  const rows=pipeline.map((a)=>[
+    a.addedAt?String(a.addedAt).substring(0,10):"", a.entreprise||a.societe||a.acheteur||"", (a.depts||[]).join(" "),
+    KIND_LABEL[a.kind]||a.kind, a.type||a.famille||a.categorie||(a.kind==="ao"?"Appel d'offres":""),
+    STATUS[a.status]?STATUS[a.status].label:a.status, a.kind==="affaire"?a.score+"/12":(a.eval?a.eval.score+"/100":""),
+    a.offre||"", a.cible||"", a.nextAction||"", a.relance||"", a.sentAt||"", a.acceptedAt||"",
+    (a.stageDates&&a.stageDates.rdv)||"", a.notes||"", a.url||"" ]);
+  downloadCsv("radar-business-pilotage-"+todayISO()+".csv", head, rows);
+}
+
 /* ─── PIPELINE ────────────────────────────────────────────────── */
-function TabPipeline({ pipeline, open, setOpen, aiCache, aiBusy, onAnalyze, onUpdate, onRemove, hasKey }){
+function TabPipeline({ pipeline, open, setOpen, aiCache, aiBusy, onAnalyze, onUpdate, onRemove, hasKey, linksFor, briefFor }){
+  const due=pipeline.filter((a)=>a.relance && String(a.relance).substring(0,10)<=todayISO() && ['gagne','perdu'].indexOf(a.status)===-1);
   function exportCsv(){
     const head=["Type","Référence","Objet","Entité","Départements","Parution","Date limite","Score","Statut","Relance","Notes","URL"];
     const rows=pipeline.map((a)=>[
-      a.kind==="ao"?"Appel d'offres":a.kind==="sig"?"BODACC":"Presse",
+      a.kind==="ao"?"Appel d'offres":a.kind==="sig"?"BODACC":a.kind==="affaire"?"Signal d'affaires":"Presse",
       a.ref||a.id, a.objet, a.acheteur, a.depts.join(" "),
       fmtDate(a.dateParution), fmtDate(a.dateLimite),
-      a.eval?a.eval.score:"", STATUS[a.status]?STATUS[a.status].label:a.status,
+      a.eval?a.eval.score:a.kind==="affaire"?a.score+"/12":"", STATUS[a.status]?STATUS[a.status].label:a.status,
       a.relance||"", a.notes||"", a.url||"" ]);
     const csv=[head].concat(rows).map((r)=>r.map((c)=>{
       const s=String(c==null?"":c); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(";")).join("\n");
     const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"});
     const url=URL.createObjectURL(blob);
     const el=document.createElement("a");
-    el.href=url; el.download="pipeline-radar-ao.csv"; el.style.display="none";
+    el.href=url; el.download="pipeline-radar-business.csv"; el.style.display="none";
     document.body.appendChild(el); el.click();
     setTimeout(()=>{ document.body.removeChild(el); URL.revokeObjectURL(url); },100);
   }
@@ -756,8 +1298,21 @@ function TabPipeline({ pipeline, open, setOpen, aiCache, aiBusy, onAnalyze, onUp
         <div style={{ fontWeight:700, color:T.ink, fontSize:17 }}>
           {pipeline.length} dossier{pipeline.length!==1?"s":""} suivi{pipeline.length!==1?"s":""}
         </div>
-        <Btn onClick={exportCsv} kind="plain" disabled={pipeline.length===0}>Export CSV</Btn>
+        <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+          <Btn onClick={()=>exportPilotage(pipeline)} kind="plain" disabled={pipeline.length===0}>Export Pilotage</Btn>
+          <Btn onClick={exportCsv} kind="plain" disabled={pipeline.length===0}>Export CSV</Btn>
+        </div>
       </div>
+      {due.length>0 && (
+        <div style={{ background:T.warmLt, border:"1px solid "+T.warm+"55", borderRadius:9, padding:"12px 14px", marginBottom:16 }}>
+          <div style={{ fontWeight:700, color:T.warm, fontSize:13.5, marginBottom:7 }}>À faire aujourd'hui · {due.length}</div>
+          {due.map((a)=>(
+            <div key={a.id} onClick={()=>setOpen(a.id)} style={{ fontSize:12.5, color:T.body, padding:"4px 0", cursor:"pointer" }}>
+              <strong style={{ color:T.ink }}>{a.entreprise||a.societe||a.acheteur}</strong> — {a.nextAction||"Relance prévue"} ({fmtDate(a.relance)})
+            </div>
+          ))}
+        </div>
+      )}
       {pipeline.length===0 ? (
         <div style={{ textAlign:"center", padding:"46px 18px", background:T.card,
                        border:"1px solid "+T.line, borderRadius:9, color:T.mute }}>
@@ -778,7 +1333,8 @@ function TabPipeline({ pipeline, open, setOpen, aiCache, aiBusy, onAnalyze, onUp
             {items.map((a)=>(
               <Card key={a.id} item={a} mode="pipe" open={open} setOpen={setOpen}
                 ai={aiCache[a.id]} aiBusy={!!aiBusy[a.id]} inPipe={true}
-                onAnalyze={onAnalyze} onAdd={()=>{}} onUpdate={onUpdate} onRemove={onRemove} hasKey={hasKey} />
+                onAnalyze={onAnalyze} onAdd={()=>{}} onUpdate={onUpdate} onRemove={onRemove} hasKey={hasKey}
+                links={linksFor?linksFor(a):null} {...(briefFor?briefFor(a):{})} />
             ))}
           </div>
         );
@@ -899,7 +1455,9 @@ function TabReglages({ apiKey, setApiKey, items, pipeline, meta, log, onWipe }){
       <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:18, marginBottom:16 }}>
         <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:4 }}>Clé API Anthropic</div>
         <div style={{ fontSize:12, color:T.mute, marginBottom:12, lineHeight:1.6 }}>
-          Nécessaire pour l'analyse IA et la veille presse. Les appels d'offres et le BODACC fonctionnent sans.
+          Facultative. Sans clé, les boutons d'analyse et de briefing copient un prompt à coller dans Claude, ChatGPT ou MAiA,
+          et la veille du mardi fournit les signaux presse et les briefings des meilleures pistes. Avec une clé (facturée à part),
+          tout se fait en un clic dans l'outil.
           La clé reste dans le stockage local de ce navigateur, elle n'est jamais transmise ailleurs qu'à
           l'API Anthropic et ne figure pas dans le code source.
         </div>
@@ -910,7 +1468,7 @@ function TabReglages({ apiKey, setApiKey, items, pipeline, meta, log, onWipe }){
         </div>
         <div style={{ fontSize:11, color:apiKey?T.ok:T.warm, marginTop:9, fontWeight:600 }}>
           {apiKey ? "Clé active — analyse IA et veille presse disponibles"
-                  : "Aucune clé — les deux sources publiques restent pleinement fonctionnelles"}
+                  : "Mode sans clé : appels d'offres, BODACC, signaux et briefings importés, prompts à copier"}
         </div>
       </div>
 
@@ -942,7 +1500,9 @@ function TabReglages({ apiKey, setApiKey, items, pipeline, meta, log, onWipe }){
    APPLICATION
    ══════════════════════════════════════════════════════════════ */
 function App(){
-  const [tab,setTab]=useState("ao");
+  const [tab,setTab]=useState("affaires");
+  const [affRaw,setAffRaw]=useState(()=>LS.get("radar-affaires",null)||AFFAIRES_DEFAUT);
+  const [importMsg,setImportMsg]=useState(null);
   const [items,setItems]=useState([]);
   const [rawAO,setRawAO]=useState([]);
   const [rawSIG,setRawSIG]=useState([]);
@@ -956,7 +1516,7 @@ function App(){
   const [apiKey,setApiKeyState]=useState(()=>LS.getRaw("radar-key",""));
   const [depts,setDepts]=useState(()=>LS.get("radar-depts",ALL_DEPTS));
   const [days,setDays]=useState(()=>LS.get("radar-days",30));
-  const [pages,setPages]=useState(()=>LS.get("radar-pages",2));
+  const [pages,setPages]=useState(()=>LS.get("radar-pages2",20));
   const [sources,setSources]=useState(()=>LS.get("radar-sources",{boamp:true,bodacc:true,presse:true}));
   const [aoCats,setAoCats]=useState(()=>LS.get("radar-aocats",(function(){const o={};AO_KEYS.forEach((k)=>{o[k]=true;});return o;})()));
   const [sigCats,setSigCats]=useState(()=>LS.get("radar-sigcats",(function(){const o={};SIG_KEYS.forEach((k)=>{o[k]=true;});return o;})()));
@@ -978,10 +1538,35 @@ function App(){
   const setApiKey=useCallback((k)=>{ setApiKeyState(k); LS.setRaw("radar-key",k); },[]);
 
   useEffect(()=>{ LS.set("radar-pipe",pipeline); },[pipeline]);
+  useEffect(()=>{ LS.set("radar-affaires",affRaw); },[affRaw]);
+  const affaires=useMemo(()=>affRaw.map(normalizeAffaire).filter(Boolean),[affRaw]);
+
+  /* Import du fichier hebdomadaire : remplace la semaine importée, garde 12 semaines */
+  const onImport=useCallback((file)=>{
+    const rd=new FileReader();
+    rd.onload=()=>{
+      try{
+        const j=JSON.parse(String(rd.result||""));
+        const rows=Array.isArray(j)?j:(j&&(j.rows||j.data||j.results))||[];
+        const ok=rows.filter((r)=>r&&typeof r==="object"&&r.entreprise&&r.statut);
+        if(!ok.length) throw new Error("aucun signal reconnu dans ce fichier");
+        const weeks=Array.from(new Set(ok.map((r)=>r.semaine).filter(Boolean)));
+        setAffRaw((prev)=>{
+          const kept=prev.filter((r)=>weeks.indexOf(r.semaine)===-1);
+          const all=ok.concat(kept);
+          const keep=Array.from(new Set(all.map((r)=>r.semaine).filter(Boolean))).sort().reverse().slice(0,12);
+          return all.filter((r)=>!r.semaine||keep.indexOf(r.semaine)!==-1);
+        });
+        setImportMsg({ ok:true, text:ok.length+" signaux importés"+(weeks.length?" ("+weeks.join(", ")+")":"")+"." });
+      }catch(e){ setImportMsg({ ok:false, text:"Import impossible : "+((e&&e.message)||"fichier illisible") }); }
+    };
+    rd.onerror=()=>setImportMsg({ ok:false, text:"Import impossible : lecture du fichier refusée" });
+    rd.readAsText(file);
+  },[]);
   useEffect(()=>{ LS.set("radar-ai",aiCache); },[aiCache]);
   useEffect(()=>{ LS.set("radar-depts",depts); },[depts]);
   useEffect(()=>{ LS.set("radar-days",days); },[days]);
-  useEffect(()=>{ LS.set("radar-pages",pages); },[pages]);
+  useEffect(()=>{ LS.set("radar-pages2",pages); },[pages]);
   useEffect(()=>{ LS.set("radar-sources",sources); },[sources]);
   useEffect(()=>{ LS.set("radar-aocats",aoCats); },[aoCats]);
   useEffect(()=>{ LS.set("radar-sigcats",sigCats); },[sigCats]);
@@ -1001,6 +1586,19 @@ function App(){
     presse.forEach((p)=>out.push(p));
     setItems(out);
   },[rawAO,rawSIG,presse,aoCats,sigCats,depts]);
+
+  /* Croisement : une même entreprise vue dans plusieurs sources */
+  const linkMap=useMemo(()=>{
+    const map={};
+    const others=items.map((o)=>({ o, k:entityKey(o.kind==="ao"?o.acheteur:o.societe) }));
+    const add=(id,l)=>{ if(!map[id]) map[id]=[]; if(map[id].indexOf(l)===-1) map[id].push(l); };
+    affaires.forEach((a)=>{
+      const ka=entityKey(a.entreprise);
+      others.forEach((x)=>{ if(sameEntity(ka,x.k)){ add(a.id,KIND_LABEL[x.o.kind]); add(x.o.id,KIND_LABEL.affaire); } });
+    });
+    return map;
+  },[items,affaires]);
+  const linksFor=useCallback((a)=>linkMap[a.id]||[],[linkMap]);
 
   /* Scan */
   const run=useCallback(async()=>{
@@ -1037,24 +1635,18 @@ function App(){
     if(aiCache[it.id]||aiBusy[it.id]) return;
     if(!apiKey){ setAiCache((p)=>Object.assign({},p,{[it.id]:{error:"clé API absente — onglet Réglages"}})); return; }
     setAiBusy((p)=>Object.assign({},p,{[it.id]:true}));
-    const ctx = it.kind==="ao"
-      ? "APPEL D'OFFRES\nObjet : "+it.objet+"\nAcheteur : "+it.acheteur+
-        "\nDate limite : "+fmtDate(it.dateLimite)+"\nType : "+it.typeAvis+" "+it.procedure+
-        "\nDescripteurs : "+String(it.descripteur||"").substring(0,400)
-      : it.kind==="sig"
-      ? "ANNONCE BODACC\nEntité : "+it.societe+"\nFamille : "+it.famille+
-        "\nVille : "+it.ville+"\nContenu : "+String(it.details||"").substring(0,700)
-      : "SIGNAL PRESSE\nEntreprise : "+it.societe+"\nSignal : "+it.signal+"\nSource : "+it.source;
+    const ctx = signalContext(it);
     try{
       const data=await callClaude(apiKey,{
-        model:"claude-sonnet-4-20250514", max_tokens:900,
+        model:MODEL, max_tokens:1100,
         system:"Tu es analyste en développement commercial, spécialisé en services financiers aux entreprises et collectivités : moyens de paiement, encaissement, monétique, flux domestiques et internationaux, trésorerie, avantages salariés. Tu réponds UNIQUEMENT en JSON valide, sans markdown ni backtick.",
         messages:[{ role:"user", content:
           "Analyse ce signal d'affaires et retourne exactement ce JSON :\n"+
           '{"besoin":"le besoin réel derrière ce signal, en 2 phrases concrètes",'+
           '"angle":"l\'approche commerciale la plus efficace, formulée comme une action",'+
           '"interlocuteur":"la fonction précise à cibler (DAF, trésorier, DSI, régisseur, DRH, acheteur...)",'+
-          '"vigilance":"le principal risque ou obstacle à anticiper"}\n\n'+ctx }],
+          '"vigilance":"le principal risque ou obstacle à anticiper",'+
+          '"message":"une demande de connexion LinkedIn de moins de 300 caractères à l\'interlocuteur visé : vouvoiement, ton humain, qui rebondit sur le signal, sans jargon ni promesse"}\n\n'+ctx }],
       });
       const txt=data&&data.content&&data.content[0]&&data.content[0].text?data.content[0].text:"";
       const parsed=extractJSON(txt);
@@ -1066,15 +1658,54 @@ function App(){
 
   const onAdd=useCallback((it)=>{
     setPipeline((p)=> p.some((x)=>x.id===it.id) ? p
-      : [Object.assign({},it,{status:"a_etudier",notes:"",relance:null,addedAt:new Date().toISOString()})].concat(p));
+      : [Object.assign({},it,{status:it.kind==="ao"?"a_etudier":"a_approcher",notes:"",relance:null,addedAt:new Date().toISOString()})].concat(p));
   },[]);
-  const onUpdate=useCallback((id,u)=>{ setPipeline((p)=>p.map((a)=>a.id===id?Object.assign({},a,u):a)); },[]);
+  const onUpdate=useCallback((id,u)=>{ setPipeline((p)=>p.map((a)=>{
+    if(a.id!==id) return a;
+    const n=Object.assign({},a,u);
+    if(u.status && u.status!==a.status) n.stageDates=Object.assign({},a.stageDates||{},{[u.status]:todayISO()});
+    return n;
+  })); },[]);
+
+  /* Briefings 7 blocs, partagés par entreprise */
+  const [briefCache,setBriefCache]=useState(()=>LS.get("radar-brief",{}));
+  const [briefBusy,setBriefBusy]=useState({});
+  const [briefOpen,setBriefOpen]=useState(null);
+  const [briefErr,setBriefErr]=useState(null);
+  useEffect(()=>{ LS.set("radar-brief",briefCache); },[briefCache]);
+  /* Briefings préparés par la veille du mardi (champ « briefing » du fichier importé) */
+  useEffect(()=>{
+    const add={};
+    affRaw.forEach((r)=>{ if(r && r.briefing && Array.isArray(r.briefing.blocs)){
+      const k=entityKey(r.entreprise||"");
+      add[k]=Object.assign({ entreprise:r.entreprise, at:r.date||todayISO() }, r.briefing);
+    }});
+    const keys=Object.keys(add); if(!keys.length) return;
+    setBriefCache((prev)=>{ let ch=false; const n=Object.assign({},prev);
+      keys.forEach((k)=>{ if(!n[k] || String(n[k].at||"")<String(add[k].at||"")){ n[k]=add[k]; ch=true; } });
+      return ch?n:prev; });
+  },[affRaw]);
+  const bKey=(it)=>entityKey(it.entreprise||it.societe||it.acheteur||"");
+  const doBrief=useCallback(async(it,force)=>{
+    const k=bKey(it);
+    if(!force && briefCache[k]){ setBriefOpen(k); return; }
+    if(!apiKey){ setBriefErr("Clé API requise pour le briefing (onglet Réglages)."); return; }
+    setBriefBusy((p)=>Object.assign({},p,{[k]:true})); setBriefErr(null);
+    try{
+      const b=await runBriefing(apiKey,it);
+      setBriefCache((p)=>Object.assign({},p,{[k]:b})); setBriefOpen(k);
+    }catch(e){ setBriefErr("Briefing impossible pour "+(it.entreprise||it.societe||"cette entreprise")+" : "+((e&&e.message)||"erreur")); }
+    finally{ setBriefBusy((p)=>Object.assign({},p,{[k]:false})); }
+  },[briefCache,apiKey]);
+  const briefFor=useCallback((it)=>{ const k=bKey(it);
+    return { onBrief:(x)=>doBrief(x,false), briefState:briefBusy[k]?"busy":briefCache[k]?"ok":"" };
+  },[doBrief,briefBusy,briefCache]);
   const onRemove=useCallback((id)=>{ setPipeline((p)=>p.filter((a)=>a.id!==id)); },[]);
 
   const onWipe=useCallback(()=>{
     if(!window.confirm("Effacer le pipeline, les analyses et tous les réglages ? Cette action est définitive.")) return;
     ["radar-pipe","radar-ai","radar-depts","radar-days","radar-pages","radar-sources",
-     "radar-aocats","radar-sigcats","radar-min","radar-sigmin","radar-open","radar-key"]
+     "radar-pages2","radar-aocats","radar-sigcats","radar-min","radar-sigmin","radar-open","radar-key","radar-affaires","radar-brief"]
       .forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
     window.location.reload();
   },[]);
@@ -1084,12 +1715,17 @@ function App(){
   const nPR=items.filter((a)=>a.kind==="presse").length;
   const urgent=pipeline.filter((a)=>{ const d=daysLeft(a.dateLimite||a.relance); return d!==null&&d>=0&&d<=7; }).length;
   const hasKey=!!apiKey;
+  const dueCount=pipeline.filter((a)=>a.relance && String(a.relance).substring(0,10)<=todayISO() && ['gagne','perdu'].indexOf(a.status)===-1).length;
+  const latestWeek=affaires.map((a)=>a.semaine).filter(Boolean).sort().reverse()[0]||"";
+  const nGo=affaires.filter((a)=>a.statut==="Go"&&(!latestWeek||a.semaine===latestWeek)).length;
 
   const TABS=[
+    { id:"affaires", label:"Signaux d'affaires"+(nGo?" · "+nGo+" Go":"") },
     { id:"ao", label:"Appels d'offres"+(nAO?" · "+nAO:"") },
     { id:"signaux", label:"Signaux dirigeants"+(nSIG?" · "+nSIG:"") },
     { id:"presse", label:"Presse & SI"+(nPR?" · "+nPR:"") },
-    { id:"pipeline", label:"Pipeline"+(pipeline.length?" · "+pipeline.length:"") },
+    { id:"pipeline", label:"Pipeline"+(pipeline.length?" · "+pipeline.length:"")+(dueCount?" · "+dueCount+" à faire":"") },
+    { id:"conversion", label:"Conversion" },
     { id:"calendrier", label:"Calendrier" },
     { id:"reglages", label:"Réglages" },
   ];
@@ -1103,14 +1739,14 @@ function App(){
           <div style={{ width:38, height:38, borderRadius:10, background:T.brand,
                          display:"flex", alignItems:"center", justifyContent:"center", fontSize:19 }}>◎</div>
           <div>
-            <div style={{ fontWeight:700, fontSize:17, letterSpacing:-0.2 }}>Radar AO</div>
+            <div style={{ fontWeight:700, fontSize:17, letterSpacing:-0.2 }}>Radar Business</div>
             <div style={{ fontSize:11, opacity:0.62, marginTop:1 }}>
-              Appels d'offres · Mouvements dirigeants · Signaux SI
+              Signaux d'affaires · Appels d'offres · Mouvements dirigeants · Presse
             </div>
           </div>
         </div>
         <div style={{ display:"flex", gap:6, fontSize:12 }}>
-          {[{v:nAO+nSIG+nPR,l:"signaux",h:false},{v:pipeline.length,l:"suivis",h:false},{v:urgent,l:"urgents",h:urgent>0}]
+          {[{v:nGo,l:"Go",h:false},{v:nAO+nSIG+nPR,l:"signaux",h:false},{v:pipeline.length,l:"suivis",h:false},{v:urgent,l:"urgents",h:urgent>0}]
             .map((s,i)=>(
             <div key={i} style={{ padding:"5px 11px", borderRadius:18, display:"flex", alignItems:"center", gap:5,
               background:s.h?"rgba(220,38,38,.28)":"rgba(255,255,255,.1)",
@@ -1142,6 +1778,11 @@ function App(){
             sources={sources} setSources={setSources} hasKey={hasKey} />
         )}
 
+        {tab==="affaires" && (
+          <TabAffaires affaires={affaires} onImport={onImport} importMsg={importMsg}
+            open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
+        )}
         {tab==="ao" && (
           <TabFlux items={items} kinds={["ao"]} empty="Aucun appel d'offres détecté"
             cats={aoCats} setCats={setAoCats} catalog={AO_CATS} catKeys={AO_KEYS}
@@ -1149,7 +1790,7 @@ function App(){
             onlyOpen={onlyOpen} setOnlyOpen={setOnlyOpen}
             sortBy={sortBy} setSortBy={setSortBy}
             open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
-            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={error} hasKey={hasKey} />
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={error} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
         )}
         {tab==="signaux" && (
           <TabFlux items={items} kinds={["sig"]} empty="Aucun mouvement détecté"
@@ -1158,28 +1799,40 @@ function App(){
             onlyOpen={false} setOnlyOpen={null}
             sortBy={sigSortBy} setSortBy={setSigSortBy}
             open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
-            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} />
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
         )}
         {tab==="presse" && (
-          <TabFlux items={items} kinds={["presse"]} empty={hasKey?"Aucun signal presse":"Renseignez votre clé API dans Réglages"}
+          <TabFlux items={items} kinds={["presse"]} empty={hasKey?"Aucun signal presse":"Sans clé API, la presse arrive chaque mardi dans l'onglet Signaux d'affaires"}
             cats={null} setCats={null} catalog={null} catKeys={[]}
             minScore={0} setMinScore={()=>{}}
             onlyOpen={false} setOnlyOpen={null}
             sortBy="date" setSortBy={()=>{}}
             open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
-            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} />
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
         )}
         {tab==="pipeline" && (
           <TabPipeline pipeline={pipeline} open={open} setOpen={setOpen}
             aiCache={aiCache} aiBusy={aiBusy} onAnalyze={onAnalyze}
-            onUpdate={onUpdate} onRemove={onRemove} hasKey={hasKey} />
+            onUpdate={onUpdate} onRemove={onRemove} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
         )}
+        {tab==="conversion" && <TabConversion pipeline={pipeline} onExport={()=>exportPilotage(pipeline)} />}
         {tab==="calendrier" && <TabCalendrier pipeline={pipeline} month={month} setMonth={setMonth} />}
         {tab==="reglages" && (
           <TabReglages apiKey={apiKey} setApiKey={setApiKey} items={items} pipeline={pipeline}
             meta={meta} log={log} onWipe={onWipe} />
         )}
       </main>
+      {briefErr && (
+        <div onClick={()=>setBriefErr(null)} style={{ position:"fixed", left:12, right:12, bottom:16, zIndex:60, maxWidth:560, margin:"0 auto",
+          background:T.hotLt, color:T.hot, border:"1px solid "+T.hot+"55", borderRadius:8, padding:"11px 14px", fontSize:13, fontWeight:600 }}>
+          {briefErr} <span style={{ color:T.mute, fontWeight:500 }}>(toucher pour fermer)</span>
+        </div>
+      )}
+      {briefOpen && briefCache[briefOpen] && (
+        <BriefModal brief={briefCache[briefOpen]} busy={!!briefBusy[briefOpen]}
+          onClose={()=>setBriefOpen(null)}
+          onRedo={()=>{ const b=briefCache[briefOpen]; doBrief({ entreprise:b.entreprise }, true); }} />
+      )}
     </div>
   );
 }
