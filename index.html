@@ -68,63 +68,118 @@ const DEPTS = { "02":"Aisne", "59":"Nord", "60":"Oise", "62":"Pas-de-Calais", "8
 const ALL_DEPTS = Object.keys(DEPTS);
 
 /* ─── FAMILLES — APPELS D'OFFRES ──────────────────────────────── */
+/* Chaque terme a un poids : 40 = cœur de métier à lui seul, 20 = pertinent, 8-12 = indice faible.
+   « need » : le terme ne compte que si l'un de ces mots est aussi présent (évite « TPE » = très petites entreprises,
+   « emprunt » de livres…). Les codes CPV sont lus dans l'avis ; le texte type (modalités de paiement, garanties…)
+   n'est JAMAIS analysé : c'était la source du bruit. */
 const AO_CATS = {
-  bancaire:{ label:"Services bancaires", weight:10, color:T.brand, terms:[
-    "services bancaires","service bancaire","prestations bancaires","prestation bancaire",
-    "marche bancaire","marches bancaires","etablissement bancaire","compte bancaire",
-    "tenue de compte","gestion de compte","mandataire financier","regie de recettes",
-    "regie d'avances","comptable public","bancaire","66110000","66100000","66600000"]},
-  encaissement:{ label:"Encaissement & monétique", weight:10, color:T.hot, terms:[
-    "monetique","tpe","terminal de paiement","terminaux de paiement","acquisition monetique",
-    "encaissement","encaissements","carte bancaire","cartes bancaires","paiement de proximite",
-    "softpos","paiement en ligne","paiement web","vente a distance","e-commerce","paiement mobile",
-    "sans contact","paiement omnicanal","automate de paiement","borne de paiement","tpv",
-    "solution de paiement","solutions de paiement","prestataire de paiement","psp","caisse enregistreuse"]},
-  fluxDom:{ label:"Flux domestiques", weight:9, color:T.cool, terms:[
-    "sepa","virement","virements","prelevement","prelevements","flux financiers","flux bancaires",
-    "moyens de paiement","moyen de paiement","ebics","host-to-host","host to host","iso 20022",
-    "cash management","gestion de tresorerie","tresorerie","portail bancaire","connectivite bancaire",
-    "dematerialisation bancaire","edi bancaire","cheque","cheques","remise de cheques","lcr",
-    "mandat sepa","paiement securise","securisation des paiements","lutte contre la fraude","anti-fraude"]},
-  international:{ label:"International & trade", weight:8, color:T.violet, terms:[
-    "swift","swiftnet","paiements internationaux","paiement international","trade finance",
-    "credit documentaire","remise documentaire","garantie internationale","garanties internationales",
-    "caution internationale","operations de change","couverture de change","devise","devises",
-    "cash pooling","centralisation de tresorerie","virtual account","comptes virtuels",
-    "transfrontalier","multidevise","import","export"]},
-  avantages:{ label:"Avantages salariés", weight:8, color:T.warm, terms:[
-    "titre restaurant","titres restaurant","titre-restaurant","titres-restaurant","cheque dejeuner",
-    "cheques dejeuner","ticket restaurant","tickets restaurant","carte restaurant","cheque vacances",
-    "cheques vacances","cesu","cheque emploi service","avantages salaries","cheque cadeau",
-    "cheques cadeaux","carte cadeau","30199770","action sociale","oeuvres sociales","comite social","cse",
-    "prestations sociales","cheque culture","forfait mobilite","mobilite durable"]},
-  amont:{ label:"Signaux amont (SI)", weight:6, color:T.ok, terms:[
-    "sap","s/4hana","erp","oracle financials","kyriba","sage xrt","logiciel de tresorerie","tms",
-    "treasury management","systeme d'information financier","dsp2","api bancaire","open banking",
-    "facturation electronique","facture electronique","dematerialisation des factures","chorus pro",
-    "portail fournisseur","gestion financiere","logiciel comptable","refonte si","audit de tresorerie",
-    "assistance a maitrise d'ouvrage financiere","amo finance"]},
-  financement:{ label:"Financement", weight:5, color:T.mute, terms:[
-    "ligne de tresorerie","emprunt","emprunts","credit bancaire","financement","affacturage",
-    "factoring","credit-bail","credit bail","leasing","location financiere","cession dailly",
-    "escompte","autorisation de decouvert"]},
+  bancaire:{ label:"Services bancaires", color:T.brand,
+    cpv:{ "66100000":45, "66110000":45, "66112000":40, "66190000":25 },
+    terms:[
+      {t:"services bancaires",w:45},{t:"service bancaire",w:45},{t:"prestations bancaires",w:45},{t:"prestation bancaire",w:45},
+      {t:"operations bancaires",w:40},{t:"marche bancaire",w:40},{t:"tenue de compte",w:40},{t:"tenue des comptes",w:30,need:"banc|depot|fonds"},
+      {t:"collecte de fonds",w:30},{t:"comptage de fonds",w:30},{t:"transport de fonds",w:25},{t:"remise de fonds",w:25},
+      {t:"mandataire financier",w:30},{t:"carte achat",w:40},{t:"cartes achat",w:40},{t:"carte d'achat",w:40},{t:"cartes d'achat",w:40},
+      {t:"carte affaires",w:30},{t:"cartes affaires",w:30},{t:"cartes bancaires",w:25},{t:"carte bancaire",w:25},
+      {t:"regie de recettes",w:15},{t:"regies de recettes",w:15},{t:"logiciel de regie",w:15},{t:"gestion des regies",w:15},
+    ]},
+  encaissement:{ label:"Encaissement & monétique", color:T.hot, cpv:{},
+    terms:[
+      {t:"monetique",w:45},{t:"acquisition monetique",w:45},{t:"terminaux de paiement",w:45},{t:"terminal de paiement",w:45},
+      {t:"terminaux de paiement electronique",w:45},{t:"tpe",w:30,need:"paiement|encaissement|carte|monetique"},
+      {t:"paiement en ligne",w:35},{t:"paiement par carte",w:35},{t:"paiement carte",w:30},{t:"paiement sans contact",w:35},
+      {t:"solution de paiement",w:40},{t:"solutions de paiement",w:40},{t:"prestataire de services de paiement",w:40},
+      {t:"encaissement par carte",w:40},{t:"solution d'encaissement",w:35},{t:"systeme d'encaissement",w:35},
+      {t:"logiciel d'encaissement",w:30},{t:"materiel d'encaissement",w:30},{t:"payfip",w:35},{t:"paiement dematerialise",w:30},
+      {t:"automate de paiement",w:30},{t:"automates de paiement",w:30},{t:"borne de paiement",w:30},{t:"bornes de paiement",w:30},
+      {t:"paiement mobile",w:25},{t:"billetterie",w:20,need:"encaissement|paiement"},{t:"systemes de paiement",w:30},{t:"systeme de paiement",w:30},
+      {t:"horodateurs",w:15,need:"paiement"},{t:"horodateur",w:15,need:"paiement"},{t:"encaissement",w:12},{t:"encaissements",w:12},
+    ]},
+  avantages:{ label:"Titres & avantages salariés", color:T.warm,
+    cpv:{ "30199770":45, "66133000":20 },
+    terms:[
+      {t:"titres restaurant",w:45},{t:"titre restaurant",w:45},{t:"tickets restaurant",w:45},{t:"ticket restaurant",w:45},
+      {t:"cheques dejeuner",w:45},{t:"cheque dejeuner",w:45},{t:"cheques repas",w:45},{t:"carte restaurant",w:40},
+      {t:"cheques vacances",w:40},{t:"cheque vacances",w:40},{t:"ancv",w:25},{t:"cheques cadeaux",w:40},{t:"cheque cadeau",w:40},
+      {t:"cartes cadeaux",w:40},{t:"carte cadeau",w:40},{t:"bons d'achat",w:35},{t:"cesu",w:40},{t:"cheque emploi service universel",w:40},
+      {t:"titres de paiement",w:30},{t:"cheques culture",w:30},{t:"titres speciaux de paiement",w:40},
+    ]},
+  fluxDom:{ label:"Flux & cash management", color:T.cool, cpv:{},
+    terms:[
+      {t:"ebics",w:40},{t:"host to host",w:35},{t:"iso 20022",w:35},{t:"cash management",w:40},{t:"gestion de tresorerie",w:30},
+      {t:"logiciel de tresorerie",w:35},{t:"logiciel de gestion de tresorerie",w:40},{t:"kyriba",w:35},{t:"sage xrt",w:35},
+      {t:"moyens de paiement",w:25},{t:"moyen de paiement",w:25},{t:"prelevement automatique",w:25},{t:"prelevements sepa",w:30},
+      {t:"prelevement sepa",w:30},{t:"virements sepa",w:30},{t:"connectivite bancaire",w:40},{t:"rapprochement bancaire",w:25},
+      {t:"fraude au virement",w:30},{t:"fraude aux paiements",w:30},
+    ]},
+  international:{ label:"International & change", color:T.violet, cpv:{},
+    terms:[
+      {t:"operations de change",w:35},{t:"couverture de change",w:40},{t:"credit documentaire",w:40},{t:"garanties internationales",w:35},
+      {t:"paiements internationaux",w:35},{t:"swift",w:25,need:"banc|paiement|virement"},{t:"cash pooling",w:40},
+      {t:"centralisation de tresorerie",w:40},{t:"comptes en devises",w:30},
+    ]},
+  financement:{ label:"Financement bancaire", color:T.mute,
+    cpv:{ "66113000":35, "66114000":25 },
+    terms:[
+      {t:"ligne de tresorerie",w:40},{t:"lignes de tresorerie",w:40},{t:"emprunt",w:30,need:"financ|souscri|budget|investissement|taux"},
+      {t:"emprunts",w:30,need:"financ|souscri|budget|investissement|taux"},{t:"souscription d'un pret",w:30},
+      {t:"contrat de pret",w:25,need:"financ|investissement|budget"},{t:"financement des investissements",w:30},
+      {t:"affacturage",w:35},{t:"credit-bail",w:20},{t:"credit bail",w:20},{t:"placement de tresorerie",w:30},
+      {t:"location financiere",w:10},
+    ]},
+  amont:{ label:"Indices SI finance", color:T.ok, cpv:{},
+    terms:[
+      {t:"facturation electronique",w:12},{t:"facture electronique",w:12},{t:"dematerialisation des factures",w:10},
+      {t:"plateforme de dematerialisation partenaire",w:15},{t:"open banking",w:25},{t:"api bancaire",w:30},
+    ]},
 };
+/* Objets qui ne relèvent jamais du métier, sauf code CPV bancaire explicite */
+const AO_NEGATIFS_DEFAUT = ["travaux","maitrise d'oeuvre","construction","rehabilitation","renovation","voirie","assainissement",
+  "nettoyage","entretien des espaces verts","restauration collective","restauration scolaire","denrees alimentaires",
+  "assurance","assurances","transport scolaire","location d'engins","fourniture de vehicules","telecommunications",
+  "impression","mobilier","fournitures de bureau","eclairage public","chauffage","desamiantage","signalisation"];
+
+const exclusHit = (txt, exclus) => { const t=norm(txt); return (exclus||[]).find((w)=>w && hasTerm(t, norm(w))) || null; };
+function scoreAO(n, enabled){
+  const objetN = norm(n.objet);
+  const hay = norm(n.objet+" | "+(n.descripteur||""));
+  let pts=0; const matched=[], hits=[]; let cpvHit=false;
+  AO_KEYS.forEach((k)=>{
+    if(enabled && !enabled[k]) return;
+    const c=AO_CATS[k]; let catPts=0;
+    Object.keys(c.cpv||{}).forEach((code)=>{ if(n.cpv && n.cpv.indexOf(code)!==-1){ catPts=Math.max(catPts,c.cpv[code]); cpvHit=true; hits.push("CPV "+code); } });
+    let best=0, extra=0;
+    c.terms.forEach((x)=>{
+      if(!hasTerm(hay,x.t)) return;
+      if(x.need && !new RegExp(x.need).test(hay)) return;
+      if(x.w>best){ extra+=best*0.25; best=x.w; } else extra+=x.w*0.25;
+      if(hits.indexOf(x.t)===-1) hits.push(x.t);
+    });
+    catPts=Math.max(catPts,best)+Math.min(extra,15);
+    if(catPts>0){ pts+=catPts; matched.push(k); }
+  });
+  if(!pts) return null;
+  const neg = AO_NEGATIFS_DEFAUT.some((w)=>hasTerm(objetN,w));
+  if(neg && !cpvHit) pts-=30;
+  if(pts<=0) return null;
+  const score=Math.min(100,Math.round(pts));
+  return { score, tier: score>=40?"Élevée":score>=20?"Moyenne":"Faible", categories:matched, hits:hits.slice(0,6) };
+}
 const AO_KEYS = Object.keys(AO_CATS);
 
 /* ─── FAMILLES — SIGNAUX BODACC ───────────────────────────────── */
 const SIG_CATS = {
   direction:{ label:"Changement de direction", weight:10, color:T.hot, terms:[
     "modification de la direction","changement de dirigeant","nouveau dirigeant","directeur general",
-    "president","presidente","gerant","gerante","administrateur","directeur financier","daf",
-    "tresorier","conseil d'administration","directoire","conseil de surveillance",
-    "representant permanent","commissaire aux comptes","nomination","demission","cessation de fonction"]},
+    "directeur general delegue","directeur financier","directeur administratif et financier","tresorier",
+    "president du directoire","president du conseil","directoire","conseil de surveillance"]},
   croissance:{ label:"Croissance & investissement", weight:9, color:T.ok, terms:[
-    "augmentation de capital","apport","fusion","absorption","acquisition","prise de participation",
+    "augmentation de capital","fusion","absorption","prise de participation","apport partiel d'actif",
     "creation d'etablissement","ouverture d'etablissement","extension d'activite","nouvelle activite",
     "transfert de siege","changement d'objet social"]},
   transmission:{ label:"Transmission & cession", weight:8, color:T.violet, terms:[
-    "vente","cession","fonds de commerce","location-gerance","location gerance",
-    "transmission universelle","apport partiel d'actif","dissolution sans liquidation"]},
+    "cession de fonds","vente de fonds","cession du fonds","achat de fonds","location-gerance","location gerance",
+    "transmission universelle","dissolution sans liquidation"]},
   creation:{ label:"Création d'entreprise", weight:6, color:T.brand, terms:[
     "immatriculation","creation","constitution","premiere immatriculation"]},
   risque:{ label:"Difficulté (vigilance)", weight:4, color:T.mute, terms:[
@@ -186,7 +241,7 @@ function sameEntity(a,b){
 const KIND_LABEL = { affaire:"Signaux d'affaires", ao:"Appels d'offres", sig:"BODACC", presse:"Presse" };
 
 /* ─── UTILS ───────────────────────────────────────────────────── */
-const norm = (s) => String(s||"").toLowerCase().normalize("NFD")
+const norm = (s) => String(s||"").toLowerCase().replace(/œ/g,"oe").replace(/æ/g,"ae").normalize("NFD")
   .replace(/[\u0300-\u036f]/g,"").replace(/['\u2019`]/g,"'");
 const fmtDate = (d) => { if(!d) return "—"; const x=new Date(d); return isNaN(x)?"—":x.toLocaleDateString("fr-FR"); };
 const daysLeft = (d) => { if(!d) return null; const x=new Date(d); return isNaN(x)?null:Math.ceil((x-new Date())/86400000); };
@@ -337,8 +392,9 @@ function normalizeAO(r0){
     resultat:/resultat|attribution/.test(norm(pick(r,["nature_libelle","nature","type_avis"])||"")),
     procedure:String(pick(r,["procedure_libelle","procedure"])||""),
     url: pick(r,["url_avis","urlavis"]) || (idweb?"https://www.boamp.fr/avis/detail/"+idweb:"https://www.boamp.fr"),
-    hay: norm([objet,pick(r,["nomacheteur","acheteur"]),descripteur,pick(r,["type_avis"]),
-      extra.replace(/\\u00[0-9a-f]{2}/gi," ").replace(/&[a-z#0-9]+;/gi," ").substring(0,9000)].join(" | ")),
+    /* Codes CPV lus dans l'avis (8 chiffres) ; le texte type de l'avis n'est pas analysé */
+    cpv: Array.from(new Set((extra.match(/(^|[^0-9])([0-9]{8})(?=[^0-9]|$)/g)||[]).map((x)=>x.replace(/[^0-9]/g,"")))).slice(0,40),
+    hay: norm([objet,descripteur].join(" | ")),
   };
 }
 
@@ -350,10 +406,9 @@ const orEq = (field, vals) => "("+vals.map((v)=>field+' = "'+v+'"').join(" or ")
 
 /* Mots-clés envoyés au serveur (recherche plein texte) : rattrape les avis
    que le balayage par pages n'aurait pas atteints */
-const AO_SERVER_TERMS = ["services bancaires","prestations bancaires","marché bancaire","tenue de compte","monétique",
-  "terminaux de paiement","encaissement","paiement en ligne","solution de paiement","moyens de paiement","cash management",
-  "trésorerie","titres restaurant","chèques vacances","chèques cadeaux","CESU","régie de recettes","mandataire financier",
-  "affacturage","ligne de trésorerie","emprunt","facturation électronique"];
+const AO_SERVER_TERMS = ["bancaire","bancaires","monétique","terminaux de paiement","paiement en ligne","solution de paiement",
+  "encaissement","titres restaurant","titres-restaurant","chèques vacances","chèques cadeaux","CESU","carte achat",
+  "cash management","EBICS","ligne de trésorerie","emprunt","affacturage","collecte de fonds"];
 
 async function pagedQuery(base, where, maxRows, label, log, prog, orderBy){
   const rows=[]; let total=null, via="";
@@ -380,7 +435,8 @@ async function scanBOAMP(depts, days, pages, log, prog){
   const iso=isoDay(since);
   const deptW = orEq("code_departement", deptVariants(depts));
   const dateW = "dateparution >= date'"+iso+"'";
-  const kwW = "("+AO_SERVER_TERMS.map((t)=>'search("'+t+'")').join(" or ")+")";
+  /* Recherche limitée à l'objet : le texte type des avis (paiement par virement…) ramenait tout */
+  const kwW = "("+AO_SERVER_TERMS.map((t)=>'search(objet,"'+t+'")').join(" or ")+")";
   const byId = {}; const vias=[]; let any=false;
   const keep = (rs) => rs.forEach((r)=>{ const f=r&&r.fields?r.fields:r; const k=(f&&(f.idweb||f.id))||JSON.stringify(f).slice(0,80); byId[k]=r; });
 
@@ -412,12 +468,23 @@ function normalizeSignal(r0){
   const famille = String(pick(r,["familleavis_lib","familleavis","typeavis_lib","typeavis"])||"");
   if(!societe && !famille) return null;
   let details="";
-  ["modificationsgenerales","personnes","depot","jugement","vente","etablissement","descriptif"].forEach(function(k){
+  ["modificationsgenerales","listepersonnes","personnes","acte","listeetablissements","depot","jugement","vente","etablissement","descriptif"].forEach(function(k){
     const v=r[k]; if(!v) return;
     details += " " + (typeof v==="string"?v:JSON.stringify(v));
   });
   const dept=String(pick(r,["numerodepartement","code_departement","departement"])||"").padStart(2,"0").substring(0,2);
   const id=pick(r,["id","publicationavis","numeroannonce"])||(societe+famille);
+  /* Capital social et forme juridique : filtrent les micro-structures sans enjeu de flux */
+  const dn=norm(details);
+  let capital=null;
+  const mc=dn.match(/montantcapital"?\s*:?\s*"?([0-9][0-9 .,]*)/) || dn.match(/capital(?: social)?(?: de)?\s*:?\s*([0-9][0-9 .]*[0-9])(?:,[0-9]+)?\s*(?:eur|euros|€)/);
+  if(mc){
+    let x=mc[1].trim().replace(/[ ]/g,"");
+    x=x.replace(/[.,](\d{1,2})$/,"#$1").replace(/[.,]/g,"").replace("#",".");   /* 10.000,00 → 10000.00 ; 10000.00 → 10000.00 */
+    const v=Number(x); if(isFinite(v)) capital=v;
+  }
+  const fm=dn.match(/\b(sas|sasu|sa|sarl|eurl|sci|snc|sca|scop|selarl|sel|gie|scea|earl)\b/);
+  const forme=fm?fm[1].toUpperCase():"";
   return {
     kind:"sig",
     id:"sig-"+String(id).substring(0,70),
@@ -425,7 +492,7 @@ function normalizeSignal(r0){
     objet:(famille?famille+" — ":"")+(societe||"Entité non nommée"),
     societe:String(societe||"—").substring(0,180),
     acheteur:String(societe||"—").substring(0,180),
-    famille,
+    famille, capital, forme,
     ville:String(pick(r,["ville","cp_ville"])||""),
     dateParution:pick(r,["dateparution","date_parution"]),
     dateLimite:null,
@@ -546,8 +613,20 @@ function Field({ label, children }){
 const inputStyle={ width:"100%", padding:"8px 9px", border:"1px solid "+T.line,
   borderRadius:6, fontSize:16, background:"#fff", color:T.ink };
 
+/* Mots d'un objet proposés à l'exclusion : significatifs, et jamais un terme métier */
+const STOP = ("avec pour dans des les une sur aux par marche marches accord cadre lot lots prestation prestations service services "+
+  "fourniture fournitures mise place relatif relative relatifs concernant ensemble commune ville departement region "+
+  "communaute agglomeration syndicat centre hospitalier hopital annee annees 2025 2026 2027 2028 groupement commandes "+
+  "achat achats acquisition passation consultation travaux").split(" ");
+function suggestWords(objet){
+  const met = new Set();
+  AO_KEYS.forEach((k)=>AO_CATS[k].terms.forEach((x)=>x.t.split(/[ \-']/).forEach((w)=>met.add(w))));
+  const ws = norm(objet).split(/[^a-z0-9]+/).filter((w)=>w.length>=5 && STOP.indexOf(w)===-1 && !met.has(w) && !/^\d+$/.test(w));
+  return Array.from(new Set(ws)).slice(0,6);
+}
+
 /* ─── CARTE ───────────────────────────────────────────────────── */
-function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd, onUpdate, onRemove, hasKey, links, onBrief, briefState }){
+function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd, onUpdate, onRemove, hasKey, links, onBrief, briefState, onEcarter, ecarte, onRetablir }){
   const isOpen = open===item.id;
   const dl = daysLeft(item.dateLimite);
   const sc = mode==="pipe" ? STATUS[item.status] : null;
@@ -560,6 +639,7 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
     : item.kind==="affaire" ? { l:"Signal d'affaires", c:T.ok, b:T.okLt }
     : { l:"Presse", c:T.cool, b:T.coolLt };
   const [copied,setCopied]=useState("");
+  const [ecStep,setEcStep]=useState(0);   /* 0 rien, 1 choix du motif, 2 mots à exclure */
   const copy=(txt,k)=>{ try{ navigator.clipboard.writeText(txt).then(()=>{ setCopied(k); setTimeout(()=>setCopied(""),1800); },()=>setCopied("err")); }catch(_){ setCopied("err"); } };
 
   return (
@@ -574,6 +654,7 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
               {afs && <Chip bg={afs.bg} color={afs.color}>{item.statut} · {item.score}/12</Chip>}
               {item.kind==="affaire" && item.type && <Chip bg={T.bg} color={T.body}>{item.type}</Chip>}
               {item.resultat && <Chip bg={T.bg} color={T.mute}>Attribution</Chip>}
+              {item.kind==="sig" && (item.forme||item.capital) && <Chip bg={T.bg} color={T.body}>{[item.forme, item.capital?"capital "+(item.capital>=1e6?(item.capital/1e6).toFixed(1).replace(".0","")+" M€":Math.round(item.capital/1000)+" k€"):""].filter(Boolean).join(" · ")}</Chip>}
               {links && links.length>0 && <Chip bg={T.ink} color="#fff">🔗 Aussi : {links.join(", ")}</Chip>}
               {item.depts.map((d)=><Chip key={d} bg={T.ink} color="#fff">{d} {DEPTS[d]||""}</Chip>)}
               {item.eval && item.eval.categories.slice(0,2).map((c)=>(
@@ -627,6 +708,12 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
                 {inPipe?"Dans le pipeline":"+ Pipeline"}
               </Btn>
             )}
+            {mode!=="pipe" && onEcarter && !ecarte && (
+              <Btn kind="danger" onClick={()=>setEcStep(ecStep?0:1)}>Écarter</Btn>
+            )}
+            {ecarte && onRetablir && (
+              <Btn kind="ok" onClick={()=>onRetablir(item)}>Rétablir</Btn>
+            )}
             {item.url && (
               <a href={item.url} target="_blank" rel="noopener noreferrer"
                 style={{ display:"inline-flex", alignItems:"center", gap:5, padding:"9px 15px",
@@ -643,6 +730,35 @@ function Card({ item, mode, open, setOpen, ai, aiBusy, inPipe, onAnalyze, onAdd,
               <div style={{ fontSize:10, color:T.mute, fontWeight:700, textTransform:"uppercase",
                              letterSpacing:0.5, marginBottom:5 }}>Contenu de l'annonce</div>
               {item.details}
+            </div>
+          )}
+
+          {ecarte && (
+            <div style={{ fontSize:12, color:T.mute, marginBottom:13 }}>{ecarte.auto?"Masqué":"Écarté le "+fmtDate(ecarte.at)} · {ecarte.raison}{ecarte.auto?" — Rétablir retire ce mot des exclusions":""}</div>
+          )}
+          {ecStep===1 && (
+            <div style={{ background:T.hotLt, borderRadius:8, padding:"10px 12px", marginBottom:13 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:T.hot, marginBottom:8 }}>Pourquoi l'écarter ?</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {["Hors métier","Trop petit","Hors territoire","Déjà traité","Pas maintenant"].map((r)=>(
+                  <Chip key={r} bg="#fff" color={T.body} onClick={()=>{
+                    if(r==="Hors métier" && item.kind==="ao" && suggestWords(item.objet).length){ setEcStep(2); }
+                    else { setEcStep(0); onEcarter(item,r,[]); }
+                  }}>{r}</Chip>
+                ))}
+              </div>
+            </div>
+          )}
+          {ecStep===2 && (
+            <div style={{ background:T.hotLt, borderRadius:8, padding:"10px 12px", marginBottom:13 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:T.hot, marginBottom:4 }}>Écarter aussi, à l'avenir, les avis contenant :</div>
+              <div style={{ fontSize:11.5, color:T.body, marginBottom:8 }}>Touchez un mot pour l'ajouter aux mots exclus (modifiables dans Réglages).</div>
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:9 }}>
+                {suggestWords(item.objet).map((w)=>(
+                  <Chip key={w} bg="#fff" color={T.hot} onClick={()=>{ setEcStep(0); onEcarter(item,"Hors métier",[w]); }}>« {w} »</Chip>
+                ))}
+              </div>
+              <Btn kind="plain" onClick={()=>{ setEcStep(0); onEcarter(item,"Hors métier",[]); }}>Non, seulement cet avis</Btn>
             </div>
           )}
 
@@ -820,11 +936,17 @@ function CommandBar({ depts, setDepts, days, setDays, pages, setPages, run, load
 /* ─── FLUX ────────────────────────────────────────────────────── */
 function TabFlux({ items, kinds, empty, cats, setCats, catalog, catKeys, minScore, setMinScore,
                    onlyOpen, setOnlyOpen, sortBy, setSortBy, open, setOpen, aiCache, aiBusy,
-                   pipeline, onAnalyze, onAdd, error, hasKey, linksFor, briefFor }){
+                   pipeline, onAnalyze, onAdd, error, hasKey, linksFor, briefFor,
+                   ecartes, onEcarter, onRetablir, capMin, setCapMin, hiddenCap }){
   const [showCfg,setShowCfg]=useState(false);
+  const [voirEc,setVoirEc]=useState(false);
+  const ec0 = ecartes||{};
+  const ecOf = (a) => ec0[a.id] || (a.exclu ? { at:"", raison:"Mot exclu « "+a.exclu+" »", auto:true } : null);
+  const nEc = items.filter((a)=>kinds.indexOf(a.kind)!==-1 && ecOf(a)).length;
   const shown=useMemo(()=>{
     let l=items.filter((a)=>kinds.indexOf(a.kind)!==-1);
-    if(catalog) l=l.filter((a)=>!a.eval||a.eval.score>=minScore);
+    l=l.filter((a)=>voirEc ? !!ecOf(a) : !ecOf(a));
+    if(catalog && !voirEc) l=l.filter((a)=>!a.eval||a.eval.score>=minScore);
     if(onlyOpen) l=l.filter((a)=>{ if(a.resultat) return false; const d=daysLeft(a.dateLimite); return d===null||d>=0; });
     const s=l.slice();
     if(sortBy==="score") s.sort((a,b)=>((b.eval&&b.eval.score)||0)-((a.eval&&a.eval.score)||0));
@@ -832,7 +954,7 @@ function TabFlux({ items, kinds, empty, cats, setCats, catalog, catKeys, minScor
       if(x===null) return 1; if(y===null) return -1; return x-y; });
     else s.sort((a,b)=>new Date(b.dateParution||0)-new Date(a.dateParution||0));
     return s;
-  },[items,kinds,minScore,onlyOpen,sortBy,catalog]);
+  },[items,kinds,minScore,onlyOpen,sortBy,catalog,voirEc,ecartes]);
 
   return (
     <div>
@@ -857,10 +979,22 @@ function TabFlux({ items, kinds, empty, cats, setCats, catalog, catKeys, minScor
                 Ouverts seulement
               </label>
             )}
+            {setCapMin && (
+              <select value={capMin} onChange={(e)=>setCapMin(Number(e.target.value))}
+                style={Object.assign({},inputStyle,{ width:"auto", minWidth:150, fontSize:13 })}>
+                {[0,50000,100000,500000,1000000].map((v)=><option key={v} value={v}>{v?"Capital ≥ "+(v>=1e6?v/1e6+" M€":v/1000+" k€"):"Tous capitaux"}</option>)}
+              </select>
+            )}
             <button onClick={()=>setShowCfg(!showCfg)} style={{ background:"none", border:"none",
               color:T.brand, fontSize:12, fontWeight:600, cursor:"pointer" }}>
               {showCfg?"▲ Familles":"▼ Familles"}
             </button>
+            {(nEc>0||voirEc) && (
+              <button onClick={()=>setVoirEc(!voirEc)} style={{ background:"none", border:"none",
+                color:voirEc?T.hot:T.mute, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                {voirEc?"◀ Retour à la liste":"Écartés · "+nEc}
+              </button>
+            )}
           </div>
           {showCfg && (
             <div style={{ marginTop:11, display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))", gap:3 }}>
@@ -892,29 +1026,36 @@ function TabFlux({ items, kinds, empty, cats, setCats, catalog, catKeys, minScor
         <div style={{ textAlign:"center", padding:"46px 18px", background:T.card,
                        border:"1px solid "+T.line, borderRadius:9 }}>
           <div style={{ fontSize:40, marginBottom:10 }}>◎</div>
-          <div style={{ fontWeight:700, color:T.ink, fontSize:16, marginBottom:5 }}>{empty}</div>
-          <div style={{ color:T.mute, fontSize:13 }}>Lancez un scan depuis la barre de commande</div>
+          <div style={{ fontWeight:700, color:T.ink, fontSize:16, marginBottom:5 }}>{voirEc?"Aucun élément écarté":empty}</div>
+          <div style={{ color:T.mute, fontSize:13 }}>
+            {hiddenCap ? hiddenCap+" annonces masquées par le filtre de capital : choisissez « Tous capitaux » pour les voir"
+              : "Lancez un scan depuis la barre de commande"}
+          </div>
         </div>
       ) : shown.map((a)=>(
         <Card key={a.id} item={a} mode="flux" open={open} setOpen={setOpen}
           ai={aiCache[a.id]} aiBusy={!!aiBusy[a.id]} inPipe={pipeline.some((x)=>x.id===a.id)}
           onAnalyze={onAnalyze} onAdd={onAdd} onUpdate={()=>{}} onRemove={()=>{}} hasKey={hasKey}
-          links={linksFor?linksFor(a):null} {...(briefFor?briefFor(a):{})} />
+          links={linksFor?linksFor(a):null} {...(briefFor?briefFor(a):{})}
+          onEcarter={onEcarter} ecarte={ecOf(a)} onRetablir={onRetablir} />
       ))}
     </div>
   );
 }
 
 /* ─── SIGNAUX D'AFFAIRES ──────────────────────────────────────── */
-function TabAffaires({ affaires, onImport, open, setOpen, aiCache, aiBusy, pipeline, onAnalyze, onAdd, hasKey, linksFor, importMsg, briefFor }){
+function TabAffaires({ affaires, onImport, open, setOpen, aiCache, aiBusy, pipeline, onAnalyze, onAdd, hasKey, linksFor, importMsg, briefFor, ecartes, onEcarter, onRetablir }){
+  const ec = ecartes||{};
   const semaines = useMemo(()=>Array.from(new Set(affaires.map((a)=>a.semaine).filter(Boolean))).sort().reverse(),[affaires]);
   const [sem,setSem]=useState("");
   const [statut,setStatut]=useState("Go");
   const fileRef=useRef(null);
   const semActive = sem || semaines[0] || "";
-  const ofWeek = affaires.filter((a)=>!semActive || a.semaine===semActive);
+  const ofWeekAll = affaires.filter((a)=>!semActive || a.semaine===semActive);
+  const nEc = ofWeekAll.filter((a)=>ec[a.id]).length;
+  const ofWeek = ofWeekAll.filter((a)=>statut==="ecartes" ? !!ec[a.id] : !ec[a.id]);
   const count = (st)=>ofWeek.filter((a)=>a.statut===st).length;
-  const shown = ofWeek.filter((a)=>!statut || a.statut===statut)
+  const shown = ofWeek.filter((a)=>!statut || statut==="ecartes" || a.statut===statut)
     .slice().sort((a,b)=>b.score-a.score);
 
   return (
@@ -937,9 +1078,12 @@ function TabAffaires({ affaires, onImport, open, setOpen, aiCache, aiBusy, pipel
           <span style={{ fontSize:10, color:T.mute, fontWeight:700, textTransform:"uppercase", letterSpacing:0.6 }}>Statut</span>
           {["Go","À qualifier","Hors cible",""].map((st)=>{
             const on=statut===st, c=st?AF_STATUT[st].color:T.ink;
+            if(statut==="ecartes" && st) return null;
             return <Chip key={st||"tous"} active={on} bg={on?c:"#fff"} color={on?"#fff":T.mute}
               onClick={()=>setStatut(st)}>{st||"Tous"} · {st?count(st):ofWeek.length}</Chip>;
           })}
+          {nEc>0 && <Chip active={statut==="ecartes"} bg={statut==="ecartes"?T.hot:"#fff"} color={statut==="ecartes"?"#fff":T.mute}
+            onClick={()=>setStatut("ecartes")}>Écartés · {nEc}</Chip>}
         </div>
         {importMsg && (
           <div style={{ marginTop:11, fontSize:12, fontWeight:600,
@@ -961,7 +1105,8 @@ function TabAffaires({ affaires, onImport, open, setOpen, aiCache, aiBusy, pipel
         <Card key={a.id} item={a} mode="flux" open={open} setOpen={setOpen}
           ai={aiCache[a.id]} aiBusy={!!aiBusy[a.id]} inPipe={pipeline.some((x)=>x.id===a.id)}
           onAnalyze={onAnalyze} onAdd={onAdd} onUpdate={()=>{}} onRemove={()=>{}} hasKey={hasKey}
-          links={linksFor(a)} {...(briefFor?briefFor(a):{})} />
+          links={linksFor(a)} {...(briefFor?briefFor(a):{})}
+          onEcarter={onEcarter} ecarte={ec[a.id]} onRetablir={onRetablir} />
       ))}
     </div>
   );
@@ -1430,7 +1575,9 @@ function TabCalendrier({ pipeline, month, setMonth }){
 }
 
 /* ─── RÉGLAGES ────────────────────────────────────────────────── */
-function TabReglages({ apiKey, setApiKey, items, pipeline, meta, log, onWipe }){
+function TabReglages({ apiKey, setApiKey, items, pipeline, meta, log, onWipe, exclus, setExclus, nEcartes, onRetablirTout }){
+  const [exDraft,setExDraft]=useState((exclus||[]).join("\n"));
+  const [exSaved,setExSaved]=useState(false);
   const [draft,setDraft]=useState(apiKey);
   const [saved,setSaved]=useState(false);
   const ao=items.filter((a)=>a.kind==="ao").length;
@@ -1473,6 +1620,21 @@ function TabReglages({ apiKey, setApiKey, items, pipeline, meta, log, onWipe }){
       </div>
 
       <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:18, marginBottom:16 }}>
+        <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:4 }}>Mots exclus</div>
+        <div style={{ fontSize:12, color:T.mute, marginBottom:10, lineHeight:1.6 }}>
+          Un avis ou une annonce dont l'objet contient l'un de ces mots n'apparaît plus. Un mot par ligne.
+          Ils s'ajoutent quand vous écartez un avis « Hors métier ». Par défaut, les travaux, l'assurance,
+          le nettoyage ou la restauration collective sont déjà déclassés, sauf code CPV bancaire explicite.
+        </div>
+        <textarea value={exDraft} onChange={(e)=>setExDraft(e.target.value)} placeholder="ex. vidéoprotection"
+          style={Object.assign({},inputStyle,{ height:110, resize:"vertical", fontSize:14 })} />
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:9 }}>
+          <Btn kind={exSaved?"ok":"solid"} onClick={()=>{ setExclus(exDraft.split("\n").map((x)=>x.trim()).filter(Boolean)); setExSaved(true); setTimeout(()=>setExSaved(false),1800); }}>{exSaved?"Enregistré":"Enregistrer"}</Btn>
+          {nEcartes>0 && <Btn kind="plain" onClick={onRetablirTout}>Rétablir les {nEcartes} éléments écartés</Btn>}
+        </div>
+      </div>
+
+      <div style={{ background:T.card, border:"1px solid "+T.line, borderRadius:9, padding:18, marginBottom:16 }}>
         <div style={{ fontWeight:700, color:T.ink, fontSize:14, marginBottom:4 }}>Journal de connexion</div>
         <div style={{ fontSize:11, color:T.mute, marginBottom:11 }}>
           {meta ? "Dernier scan : "+meta : "Aucun scan lancé."}
@@ -1502,6 +1664,22 @@ function TabReglages({ apiKey, setApiKey, items, pipeline, meta, log, onWipe }){
 function App(){
   const [tab,setTab]=useState("affaires");
   const [affRaw,setAffRaw]=useState(()=>LS.get("radar-affaires",null)||AFFAIRES_DEFAUT);
+  /* Écartés, mots exclus, capital minimum BODACC */
+  const [ecartes,setEcartes]=useState(()=>LS.get("radar-ecartes",{}));
+  const [exclus,setExclus]=useState(()=>LS.get("radar-exclus",[]));
+  const [capMin,setCapMin]=useState(()=>LS.get("radar-capmin",100000));
+  const [hiddenCap,setHiddenCap]=useState(0);
+  useEffect(()=>{ LS.set("radar-ecartes",ecartes); },[ecartes]);
+  useEffect(()=>{ LS.set("radar-exclus",exclus); },[exclus]);
+  useEffect(()=>{ LS.set("radar-capmin",capMin); },[capMin]);
+  const onEcarter=useCallback((it,raison,mots)=>{
+    setEcartes((p)=>Object.assign({},p,{[it.id]:{ at:todayISO(), raison, objet:String(it.objet||"").substring(0,120), kind:it.kind }}));
+    if(mots && mots.length) setExclus((p)=>Array.from(new Set(p.concat(mots))));
+  },[]);
+  const onRetablir=useCallback((it)=>{
+    setEcartes((p)=>{ const n=Object.assign({},p); delete n[it.id]; return n; });
+    if(it.exclu) setExclus((p)=>p.filter((w)=>w!==it.exclu));
+  },[]);
   const [importMsg,setImportMsg]=useState(null);
   const [items,setItems]=useState([]);
   const [rawAO,setRawAO]=useState([]);
@@ -1520,7 +1698,7 @@ function App(){
   const [sources,setSources]=useState(()=>LS.get("radar-sources",{boamp:true,bodacc:true,presse:true}));
   const [aoCats,setAoCats]=useState(()=>LS.get("radar-aocats",(function(){const o={};AO_KEYS.forEach((k)=>{o[k]=true;});return o;})()));
   const [sigCats,setSigCats]=useState(()=>LS.get("radar-sigcats",(function(){const o={};SIG_KEYS.forEach((k)=>{o[k]=true;});return o;})()));
-  const [minScore,setMinScore]=useState(()=>LS.get("radar-min",20));
+  const [minScore,setMinScore]=useState(()=>LS.get("radar-min2",20));
   const [sigMinScore,setSigMinScore]=useState(()=>LS.get("radar-sigmin",20));
   const [onlyOpen,setOnlyOpen]=useState(()=>LS.get("radar-open",true));
   const [sortBy,setSortBy]=useState("score");
@@ -1570,7 +1748,7 @@ function App(){
   useEffect(()=>{ LS.set("radar-sources",sources); },[sources]);
   useEffect(()=>{ LS.set("radar-aocats",aoCats); },[aoCats]);
   useEffect(()=>{ LS.set("radar-sigcats",sigCats); },[sigCats]);
-  useEffect(()=>{ LS.set("radar-min",minScore); },[minScore]);
+  useEffect(()=>{ LS.set("radar-min2",minScore); },[minScore]);
   useEffect(()=>{ LS.set("radar-sigmin",sigMinScore); },[sigMinScore]);
   useEffect(()=>{ LS.set("radar-open",onlyOpen); },[onlyOpen]);
 
@@ -1579,13 +1757,18 @@ function App(){
     const out=[];
     rawAO.forEach((r)=>{ const n=normalizeAO(r); if(!n) return;
       if(depts.length && n.depts.length && !n.depts.some((d)=>depts.indexOf(d)!==-1)) return;
-      const ev=scoreItem(n.hay,AO_CATS,AO_KEYS,aoCats); if(ev) out.push(Object.assign({},n,{eval:ev})); });
+      const ev=scoreAO(n,aoCats); if(ev) out.push(Object.assign({},n,{eval:ev, exclu:exclusHit(n.objet,exclus)})); });
+    let hid=0;
     rawSIG.forEach((r)=>{ const n=normalizeSignal(r); if(!n) return;
       if(depts.length && n.depts.length && !n.depts.some((d)=>depts.indexOf(d)!==-1)) return;
-      const ev=scoreItem(n.hay,SIG_CATS,SIG_KEYS,sigCats); if(ev) out.push(Object.assign({},n,{eval:ev})); });
+      if(/^(SCI|SCEA|EARL|GIE)$/.test(n.forme||"")) return;
+      const ev=scoreItem(n.hay,SIG_CATS,SIG_KEYS,sigCats); if(!ev) return;
+      if(capMin && !(n.capital>=capMin)){ hid++; return; }
+      out.push(Object.assign({},n,{eval:ev, exclu:exclusHit(n.societe,exclus)})); });
+    setHiddenCap(hid);
     presse.forEach((p)=>out.push(p));
     setItems(out);
-  },[rawAO,rawSIG,presse,aoCats,sigCats,depts]);
+  },[rawAO,rawSIG,presse,aoCats,sigCats,depts,exclus,capMin]);
 
   /* Croisement : une même entreprise vue dans plusieurs sources */
   const linkMap=useMemo(()=>{
@@ -1705,7 +1888,7 @@ function App(){
   const onWipe=useCallback(()=>{
     if(!window.confirm("Effacer le pipeline, les analyses et tous les réglages ? Cette action est définitive.")) return;
     ["radar-pipe","radar-ai","radar-depts","radar-days","radar-pages","radar-sources",
-     "radar-pages2","radar-aocats","radar-sigcats","radar-min","radar-sigmin","radar-open","radar-key","radar-affaires","radar-brief"]
+     "radar-pages2","radar-ecartes","radar-exclus","radar-capmin","radar-aocats","radar-sigcats","radar-min","radar-sigmin","radar-open","radar-key","radar-affaires","radar-brief"]
       .forEach((k)=>{ try{ localStorage.removeItem(k); }catch(_){} });
     window.location.reload();
   },[]);
@@ -1781,7 +1964,8 @@ function App(){
         {tab==="affaires" && (
           <TabAffaires affaires={affaires} onImport={onImport} importMsg={importMsg}
             open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
-            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor}
+            ecartes={ecartes} onEcarter={onEcarter} onRetablir={onRetablir} />
         )}
         {tab==="ao" && (
           <TabFlux items={items} kinds={["ao"]} empty="Aucun appel d'offres détecté"
@@ -1790,16 +1974,19 @@ function App(){
             onlyOpen={onlyOpen} setOnlyOpen={setOnlyOpen}
             sortBy={sortBy} setSortBy={setSortBy}
             open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
-            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={error} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={error} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor}
+            ecartes={ecartes} onEcarter={onEcarter} onRetablir={onRetablir} />
         )}
         {tab==="signaux" && (
           <TabFlux items={items} kinds={["sig"]} empty="Aucun mouvement détecté"
+            capMin={capMin} setCapMin={setCapMin} hiddenCap={hiddenCap}
             cats={sigCats} setCats={setSigCats} catalog={SIG_CATS} catKeys={SIG_KEYS}
             minScore={sigMinScore} setMinScore={setSigMinScore}
             onlyOpen={false} setOnlyOpen={null}
             sortBy={sigSortBy} setSortBy={setSigSortBy}
             open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
-            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor}
+            ecartes={ecartes} onEcarter={onEcarter} onRetablir={onRetablir} />
         )}
         {tab==="presse" && (
           <TabFlux items={items} kinds={["presse"]} empty={hasKey?"Aucun signal presse":"Sans clé API, la presse arrive chaque mardi dans l'onglet Signaux d'affaires"}
@@ -1808,17 +1995,20 @@ function App(){
             onlyOpen={false} setOnlyOpen={null}
             sortBy="date" setSortBy={()=>{}}
             open={open} setOpen={setOpen} aiCache={aiCache} aiBusy={aiBusy}
-            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
+            pipeline={pipeline} onAnalyze={onAnalyze} onAdd={onAdd} error={null} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor}
+            ecartes={ecartes} onEcarter={onEcarter} onRetablir={onRetablir} />
         )}
         {tab==="pipeline" && (
           <TabPipeline pipeline={pipeline} open={open} setOpen={setOpen}
             aiCache={aiCache} aiBusy={aiBusy} onAnalyze={onAnalyze}
-            onUpdate={onUpdate} onRemove={onRemove} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor} />
+            onUpdate={onUpdate} onRemove={onRemove} hasKey={hasKey} linksFor={linksFor} briefFor={briefFor}
+            ecartes={ecartes} onEcarter={onEcarter} onRetablir={onRetablir} />
         )}
         {tab==="conversion" && <TabConversion pipeline={pipeline} onExport={()=>exportPilotage(pipeline)} />}
         {tab==="calendrier" && <TabCalendrier pipeline={pipeline} month={month} setMonth={setMonth} />}
         {tab==="reglages" && (
           <TabReglages apiKey={apiKey} setApiKey={setApiKey} items={items} pipeline={pipeline}
+            exclus={exclus} setExclus={setExclus} nEcartes={Object.keys(ecartes).length} onRetablirTout={()=>setEcartes({})}
             meta={meta} log={log} onWipe={onWipe} />
         )}
       </main>
